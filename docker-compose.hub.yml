@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  backend:
+    image: ${DOCKER_USERNAME}/gacha-backend:latest
+    container_name: gacha-backend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - DB_HOST=mysql_db
+      - DB_USER=root
+      - DB_PASSWORD=rootpassword
+      - DB_NAME=restaurant_gacha
+      # Add other env vars here
+    depends_on:
+      - mysql_db
+    networks:
+      - gacha-network
+
+  frontend:
+    image: ${DOCKER_USERNAME}/gacha-frontend:latest
+    container_name: gacha-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - gacha-network
+
+  mysql_db:
+    image: mysql:8.0
+    container_name: gacha-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: restaurant_gacha
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - gacha-network
+
+networks:
+  gacha-network:
+    driver: bridge
+
+volumes:
+  db_data:
