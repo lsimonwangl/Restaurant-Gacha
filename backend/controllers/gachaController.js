@@ -45,14 +45,19 @@ const drawDish = async (req, res) => {
 
         let count = await getCount(rarity);
 
-        // Downgrade logic if pool empty
-        if (count === 0 && rarity === 'epic') {
-            rarity = 'rare';
-            count = await getCount(rarity);
-        }
-        if (count === 0 && (rarity === 'rare' || rarity === 'epic')) {
-            rarity = 'common';
-            count = await getCount(rarity);
+        // Smart Fallback Logic: If rolled rarity is empty, try others in order
+        if (count === 0) {
+            const rarities = ['common', 'rare', 'epic'];
+            // Remove the one we already tried
+            const others = rarities.filter(r => r !== rarity);
+
+            for (const r of others) {
+                count = await getCount(r);
+                if (count > 0) {
+                    rarity = r;
+                    break;
+                }
+            }
         }
 
         if (count === 0) {

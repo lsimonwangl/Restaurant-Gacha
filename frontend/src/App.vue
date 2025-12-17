@@ -28,6 +28,7 @@ const logout = () => {
     </div>
     <nav>
       <RouterLink to="/restaurants" class="nav-link">餐廳列表</RouterLink>
+      <RouterLink to="/explore" class="nav-link">探索社群</RouterLink>
       <div class="divider"></div>
       <RouterLink v-if="!isAuthenticated" to="/login" class="nav-link">登入</RouterLink>
       <RouterLink v-if="!isAuthenticated" to="/register" class="btn-primary" style="text-decoration: none; padding: 0.5rem 1rem;">註冊</RouterLink>

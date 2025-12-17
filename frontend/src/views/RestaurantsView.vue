@@ -11,7 +11,8 @@ const showCreateDish = ref(false)
 const showCreateGroup = ref(false)
 const showAddToGroup = ref(false)
 const newDish = ref({ name: '', description: '', rarity: 'common' })
-const newGroup = ref({ name: '', description: '' })
+const newGroup = ref({ name: '', description: '', is_public: false })
+const showManageGroups = ref(false)
 const selectedDish = ref(null)
 const selectedGroupId = ref(null)
 const selectedGroupFilter = ref(null) // For filtering view
@@ -97,12 +98,23 @@ const createDish = async () => {
 
 const createGroup = async () => {
     try {
-        await axios.post('/groups', { ...newGroup.value, slug: newGroup.value.name }) // Simple slug
+        await axios.post('/groups', { ...newGroup.value, slug: newGroup.value.name }) 
         showCreateGroup.value = false
-        newGroup.value = { name: '', description: '' }
+        newGroup.value = { name: '', description: '', is_public: false }
         fetchGroups()
     } catch (e) {
         alert('建立失敗: ' + (e.response?.data?.message || e.message))
+    }
+}
+
+const toggleGroupPublic = async (group) => {
+    try {
+        const newStatus = !group.is_public
+        await axios.put(`/groups/${group.id}`, { is_public: newStatus })
+        group.is_public = newStatus // Optimistic update
+        // fetchGroups() // Optional: refresh to be sure
+    } catch (e) {
+        alert('更新失敗: ' + (e.response?.data?.message || e.message))
     }
 }
 
@@ -150,6 +162,40 @@ const removeGroupFromDish = async (dish, groupInfo) => {
 const showEditDish = ref(false)
 const editDishData = ref({ id: null, name: '', description: '', rarity: 'common' })
 const editFile = ref(null)
+
+// Group Edit Logic
+const showEditGroup = ref(false)
+const editGroupData = ref({ id: null, name: '', description: '', is_public: false })
+
+const openEditGroup = (group) => {
+    editGroupData.value = { ...group }
+    showEditGroup.value = true
+}
+
+const updateGroup = async () => {
+    if (!editGroupData.value.name) return alert('請輸入名稱')
+    try {
+        await axios.put(`/groups/${editGroupData.value.id}`, editGroupData.value)
+        showEditGroup.value = false
+        // Update local list
+        const idx = groups.value.findIndex(g => g.id === editGroupData.value.id)
+        if (idx !== -1) groups.value[idx] = { ...groups.value[idx], ...editGroupData.value }
+        alert('群組已更新')
+    } catch(e) {
+        alert('更新失敗: ' + (e.response?.data?.message || e.message))
+    }
+}
+
+const deleteGroup = async (group) => {
+    if (!confirm(`確定要刪除群組「${group.name}」嗎？此動作無法復原！`)) return
+    try {
+        await axios.delete(`/groups/${group.id}`)
+        groups.value = groups.value.filter(g => g.id !== group.id)
+        if (selectedGroupFilter.value === group.id) selectedGroupFilter.value = null
+    } catch(e) {
+        alert('刪除失敗: ' + (e.response?.data?.message || e.message))
+    }
+}
 
 const openEditDish = (dish) => {
     editDishData.value = { ...dish } // Copy data
@@ -199,6 +245,7 @@ fetchGroups()
       <div class="actions" style="margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
         <button class="btn-primary" @click="showCreateDish = true">➕ 新增餐廳</button>
         <button class="btn-secondary" @click="showCreateGroup = true">📁 新增群組</button>
+        <button v-if="groups.length > 0" class="btn-small" @click="showManageGroups = true">⚙️ 管理群組</button>
         
         <div v-if="groups.length > 0" class="group-list-display">
             <span style="color: var(--secondary-color); margin-right: 0.5rem;" @click="selectedGroupFilter = null; fetchDishes()" :style="{cursor: 'pointer', textDecoration: selectedGroupFilter ? 'underline' : 'none'}">目前群組 (點擊篩選):</span>
@@ -282,6 +329,10 @@ fetchGroups()
         <h3>新增群組</h3>
         <input v-model="newGroup.name" placeholder="群組名稱 (例如: 公司附近)" class="input-field">
         <input v-model="newGroup.description" placeholder="描述" class="input-field">
+        <div class="checkbox-group">
+            <input type="checkbox" id="publicGroup" v-model="newGroup.is_public">
+            <label for="publicGroup">設為公開 (其他人可以收藏)</label>
+        </div>
         <div class="modal-actions">
            <button class="btn-primary" @click="createGroup">建立</button>
            <button class="btn-secondary" @click="showCreateGroup = false">取消</button>
@@ -326,6 +377,47 @@ fetchGroups()
              {{ uploading ? '更新中...' : '儲存' }}
            </button>
            <button class="btn-secondary" @click="showEditDish = false">取消</button>
+        </div>
+      </div>
+      </div>
+
+
+    <!-- Manage Groups Modal -->
+    <div v-if="showManageGroups" class="modal-overlay">
+      <div class="glass-panel modal">
+        <h3>管理我的群組</h3>
+        <div class="manage-list">
+            <div v-for="g in groups" :key="g.id" class="manage-item" v-show="g.is_owner">
+                <span>{{ g.name }}</span>
+                <button class="btn-small" :class="{ 'btn-active': g.is_public }" @click="toggleGroupPublic(g)">
+                    {{ g.is_public ? '🌐 公開中' : '🔒 私人' }}
+                </button>
+                <div class="manage-actions">
+                    <button class="btn-small" @click="openEditGroup(g)">✏️ 編輯</button>
+                    <button class="btn-small btn-danger" @click="deleteGroup(g)">🗑️ 刪除</button>
+                </div>
+            </div>
+            <p v-if="groups.filter(g=>g.is_owner).length === 0" style="color:var(--text-muted)">你還沒有建立任何群組。</p>
+        </div>
+        <div class="modal-actions">
+           <button class="btn-secondary" @click="showManageGroups = false">關閉</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Group Modal -->
+    <div v-if="showEditGroup" class="modal-overlay">
+      <div class="glass-panel modal">
+        <h3>編輯群組</h3>
+        <input v-model="editGroupData.name" placeholder="群組名稱" class="input-field">
+        <input v-model="editGroupData.description" placeholder="描述" class="input-field">
+         <div class="checkbox-group">
+            <input type="checkbox" id="editPublicGroup" v-model="editGroupData.is_public">
+            <label for="editPublicGroup">設為公開</label>
+        </div>
+        <div class="modal-actions">
+           <button class="btn-primary" @click="updateGroup">儲存</button>
+           <button class="btn-secondary" @click="showEditGroup = false">取消</button>
         </div>
       </div>
     </div>
@@ -550,5 +642,44 @@ fetchGroups()
 }
 .mini-group-tag.clickable:hover .remove-x {
     opacity: 1;
+}
+
+/* Manage Groups List */
+.manage-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.manage-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255,255,255,0.05);
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+    gap: 1rem;
+}
+
+.manage-item span {
+    font-weight: bold;
+    flex: 1; /* Name takes remaining space */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.manage-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-active {
+    border-color: #10b981;
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
 }
 </style>

@@ -1,52 +1,53 @@
-version: '3.8'
-
 services:
   backend:
+    build: ./backend
     image: ${DOCKER_USERNAME}/gacha-backend:latest
     container_name: gacha-backend
     restart: always
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       - PORT=3000
       - DB_HOST=mysql_db
       - DB_USER=root
       - DB_PASSWORD=rootpassword
       - DB_NAME=restaurant_gacha
-      # Add other env vars here
+      - DB_PORT=3306 # Force internal port
     depends_on:
       - mysql_db
     networks:
-      - gacha-network
+      - web-network
 
   frontend:
+    build: ./frontend
     image: ${DOCKER_USERNAME}/gacha-frontend:latest
     container_name: gacha-frontend
     restart: always
-    ports:
-      - "80:80"
+    # ports:
+    #   - "8080:80" # 透過 Nginx 轉發，不需要直接暴露 Port
     depends_on:
       - backend
     networks:
-      - gacha-network
+      - web-network
 
   mysql_db:
-    image: mysql:8.0
+    build: ./database
+    image: ${DOCKER_USERNAME}/gacha-mysql:latest # Use our custom image with schema baked in!
     container_name: gacha-mysql
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: restaurant_gacha
     ports:
-      - "3306:3306"
+      - "3308:3306" # Sync with local testing success
     volumes:
       - db_data:/var/lib/mysql
     networks:
-      - gacha-network
+      - web-network
 
 networks:
-  gacha-network:
-    driver: bridge
+  web-network:
+    external: true
 
 volumes:
   db_data:

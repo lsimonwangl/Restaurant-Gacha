@@ -6,14 +6,17 @@ services:
     container_name: gacha-backend
     restart: always
     ports:
-      - "3000:3000"
+      - "3001:3000"
+    env_file:
+      - ./backend/.env
     environment:
       - PORT=3000
       - DB_HOST=mysql_db
       - DB_USER=root
       - DB_PASSWORD=rootpassword
       - DB_NAME=restaurant_gacha
-      # Add other env vars here or use env_file
+      - DB_PORT=3306 # Force internal port, ignoring local .env 3307
+      # DB_HOST override ensures we use container name, not localhost from .env
     depends_on:
       - mysql_db
     networks:
@@ -24,7 +27,7 @@ services:
     container_name: gacha-frontend
     restart: always
     ports:
-      - "80:80"
+      - "9080:80"
     depends_on:
       - backend
     networks:
@@ -38,7 +41,7 @@ services:
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: restaurant_gacha
     ports:
-      - "3306:3306"
+      - "3308:3306"
     volumes:
       - db_data:/var/lib/mysql
       # Initialize DB schema

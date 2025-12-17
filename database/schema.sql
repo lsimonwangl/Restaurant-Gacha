@@ -13,15 +13,31 @@ CREATE TABLE IF NOT EXISTS `dishes` (
   description TEXT,
   image_url VARCHAR(255),
   rarity ENUM('common', 'rare', 'epic') NOT NULL DEFAULT 'common',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  user_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS `groups` (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
-  slug VARCHAR(255) NOT NULL UNIQUE,
+  slug VARCHAR(255) NOT NULL,
   description TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  user_id INT NOT NULL,
+  is_public BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_user_slug (user_id, slug)
+);
+
+CREATE TABLE IF NOT EXISTS `saved_groups` (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  group_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (group_id) REFERENCES `groups`(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_save (user_id, group_id)
 );
 
 CREATE TABLE IF NOT EXISTS `dish_groups` (
