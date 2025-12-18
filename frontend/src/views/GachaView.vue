@@ -145,8 +145,9 @@ const draw = async () => {
   width: 100%;
   height: 100%;
   position: relative;
-  transition: transform 1s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy transition */
+  transition: transform 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d; /* Safari fix */
 }
 
 .card.is-flipped {
@@ -158,6 +159,7 @@ const draw = async () => {
   width: 100%;
   height: 100%;
   backface-visibility: hidden;
+  -webkit-backface-visibility: hidden; /* Safari/Mobile fix */
   border-radius: 20px;
   display: flex;
   align-items: center;
@@ -171,6 +173,7 @@ const draw = async () => {
   background: linear-gradient(135deg, #1e293b, #0f172a);
   font-size: 6rem;
   color: rgba(255,255,255,0.1);
+  transform: rotateY(0deg); /* Explicit transform helps browser know it's 3D */
   
   /* Pattern */
   background-image: radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px);

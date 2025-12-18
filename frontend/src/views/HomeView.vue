@@ -52,14 +52,23 @@ onMounted(() => {
 
     <div class="stats-grid">
       <!-- Today's Fortune -->
-      <div class="glass-panel stat-card">
+      <div class="glass-panel stat-card fortune-card">
         <h3>🔥 今日運勢</h3>
-        <div v-if="lastDraw" class="stat-content-centered" style="align-items: flex-start; text-align: left;">
-           <p style="font-size: 1.2rem; font-weight: bold; color: var(--accent-color);">{{ lastDraw.name }}</p>
-           <img v-if="lastDraw.image_url" :src="lastDraw.image_url" style="width: 100%; height: auto; max-height: 200px; object-fit: contain; border-radius: 8px; margin-top: 1rem;">
-           <span class="badge" :class="lastDraw.rarity" style="margin-top: 1rem;">
-             {{ lastDraw.rarity === 'common' ? '普通' : lastDraw.rarity === 'rare' ? '稀有' : '史詩' }}
-           </span>
+        <div v-if="lastDraw" class="fortune-content">
+           <div class="fortune-image-wrapper">
+             <img v-if="lastDraw.image_url" :src="lastDraw.image_url" class="fortune-img">
+             <span v-else class="no-img-placeholder">🍲</span>
+             
+             <!-- Rarity Badge Overlay -->
+             <span class="rarity-tag" :class="lastDraw.rarity">
+               {{ lastDraw.rarity === 'common' ? '普通' : lastDraw.rarity === 'rare' ? '稀有' : '史詩' }}
+             </span>
+           </div>
+           
+           <div class="fortune-details">
+             <p class="restaurant-name">{{ lastDraw.name }}</p>
+             <p class="restaurant-desc" v-if="lastDraw.description">{{ lastDraw.description }}</p>
+           </div>
         </div>
         <div v-else class="stat-content-centered empty-state">
             <span class="empty-icon">❓</span>
@@ -212,5 +221,88 @@ onMounted(() => {
     font-size: 4rem;
     color: rgba(255,255,255,0.1);
     margin-bottom: 0.5rem;
+}
+
+/* Fortune Card Specifics */
+.fortune-content {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.fortune-image-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/9;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+.fortune-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s;
+}
+
+.fortune-card:hover .fortune-img {
+    transform: scale(1.05);
+}
+
+.rarity-tag {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: white;
+    text-transform: uppercase;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.rarity-tag.common { background: rgba(148, 163, 184, 0.9); }
+.rarity-tag.rare { background: rgba(59, 130, 246, 0.9); }
+.rarity-tag.epic { 
+    background: linear-gradient(135deg, #a855f7 0%, #d946ef 100%);
+    box-shadow: 0 2px 10px rgba(168, 85, 247, 0.4);
+}
+
+.fortune-details {
+    padding: 0 0.5rem;
+}
+
+.restaurant-name {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: 0.25rem;
+    background: linear-gradient(to right, #ffffff, #e2e8f0);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.restaurant-desc {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.no-img-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    background: rgba(30, 41, 59, 0.5);
 }
 </style>
