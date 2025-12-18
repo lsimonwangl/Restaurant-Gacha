@@ -9,6 +9,16 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: restaurant_gacha
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
     steps:
     - uses: actions/checkout@v3
     
@@ -22,18 +32,13 @@ jobs:
         cd backend
         npm install
         
-    # Start MySQL for Integration Test
-    - name: Start MySQL
-      run: |
-        sudo /etc/init.d/mysql start
-        mysql -e 'CREATE DATABASE restaurant_gacha;' -uroot -proot
-        
     - name: Run Tests
       run: |
         cd backend
         npm test
       env:
-        DB_HOST: localhost
+        DB_HOST: 127.0.0.1
+        DB_PORT: 3306
         DB_USER: root
         DB_PASSWORD: root
         DB_NAME: restaurant_gacha
