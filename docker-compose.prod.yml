@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  backend:
+    # Production uses pre-built image from Docker Hub
+    image: ${DOCKER_USERNAME}/restaurant-gacha-backend:latest
+    container_name: gacha-backend
+    restart: always
+    ports:
+      - "3001:3000" # Match existing EC2 (3001->3000)
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=mysql_db
+      - PORT=3000
+    depends_on:
+      - mysql_db
+    networks:
+      - gacha-network
+
+  frontend:
+    image: ${DOCKER_USERNAME}/restaurant-gacha-frontend:latest
+    container_name: gacha-frontend
+    restart: always
+    ports:
+      - "8080:80" # Match existing EC2 (8080->80)
+    depends_on:
+      - backend
+    networks:
+      - gacha-network
+
+  mysql_db:
+    image: mysql:8.0
+    container_name: gacha-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+    ports:
+      - "3308:3306" # Match existing EC2 (3308->3306)
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - gacha-network
+  # Optional: Nginx for reverse proxy / SSL
+  # nginx:
+  #   image: nginx:alpine
+  #   ...
+
+networks:
+  gacha-network:
+    driver: bridge
+
+volumes:
+  db_data:
