@@ -115,9 +115,14 @@ onMounted(() => {
         <div v-else class="dish-list">
             <div v-for="dish in groupDishes" :key="dish.id" class="dish-row">
                 <img v-if="dish.image_url" :src="dish.image_url" class="dish-thumb">
+                <span v-else class="dish-thumb" style="display:flex;align-items:center;justify-content:center;font-size:2rem;background:#334155;">🍽️</span>
+                
                 <div class="dish-info">
-                    <strong>{{ dish.name }}</strong>
-                    <span class="rarity-tag" :class="dish.rarity">{{ dish.rarity }}</span>
+                    <div class="dish-header">
+                        <span class="dish-name">{{ dish.name }}</span>
+                        <span class="rarity-tag" :class="dish.rarity">{{ dish.rarity }}</span>
+                    </div>
+                    <p class="dish-desc">{{ dish.description || '這道料理還沒有描述...' }}</p>
                 </div>
             </div>
         </div>
@@ -249,48 +254,83 @@ onMounted(() => {
 
 /* List Modal */
 .list-modal {
-    max-width: 500px;
-    max-height: 80vh;
+    width: 95%;              /* Maximize width on small screens */
+    max-width: 800px;        /* Increased from 500px */
+    max-height: 85vh;
     overflow-y: auto;
 }
 
 .dish-list {
     display: flex;
     flex-direction: column;
-    gap: 0.8rem;
+    gap: 1rem;               /* Increased gap */
     margin-top: 1rem;
 }
 
 .dish-row {
     display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.5rem;
-    background: rgba(255,255,255,0.03);
-    border-radius: 8px;
+    align-items: flex-start; /* Align top for description */
+    gap: 1.5rem;             /* Increased gap */
+    padding: 1rem;           /* Increased padding */
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background 0.2s;
+}
+
+.dish-row:hover {
+    background: rgba(255,255,255,0.08);
 }
 
 .dish-thumb {
-    width: 50px;
-    height: 50px;
-    border-radius: 6px;
+    width: 100px;            /* Increased from 50px */
+    height: 100px;           /* Increased from 50px */
+    border-radius: 8px;
     object-fit: cover;
+    flex-shrink: 0;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
 }
 
 .dish-info {
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;           /* Prevent text overflow issues */
+}
+
+.dish-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.dish-name {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.dish-desc {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin: 0;
 }
 
 .rarity-tag {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.1);
 }
-.rarity-tag.common { color: #94a3b8; }
-.rarity-tag.rare { color: #60a5fa; }
-.rarity-tag.epic { color: #a78bfa; }
+.rarity-tag.common { color: #cbd5e1; background: rgba(148, 163, 184, 0.2); }
+.rarity-tag.rare { color: #60a5fa; background: rgba(37, 99, 235, 0.2); }
+.rarity-tag.epic { color: #e879f9; background: rgba(192, 38, 211, 0.2); }
 
 /* Modals */
 .modal-overlay {
