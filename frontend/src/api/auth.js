@@ -9,5 +9,14 @@ export const authApi = {
     },
     getMe() {
         return axios.get('/auth/me');
+    },
+    updateProfile(formData) {
+        return axios.put('/auth/update-profile', formData);
+    },
+    changePassword(data) {
+        return axios.put('/auth/change-password', data);
+    },
+    deleteAccount(data) {
+        return axios.delete('/auth/delete-account', { data });
     }
 };

@@ -30,7 +30,7 @@ const createDish = async (req, res) => {
 
     try {
         if (req.file) {
-            image_url = await uploadToS3(req.file);
+            image_url = await uploadToS3(req.file, 'dishes');
         }
 
         const newDishId = await Dish.create({ name, description, image_url, rarity }, req.user.id);
@@ -54,7 +54,7 @@ const updateDish = async (req, res) => {
             }
 
             if (req.file) {
-                image_url = await uploadToS3(req.file);
+                image_url = await uploadToS3(req.file, 'dishes');
             } else if (image_url === undefined) {
                 // If no new file and no new url provided, keep old one
                 image_url = dish.image_url;

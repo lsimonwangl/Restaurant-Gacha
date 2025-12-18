@@ -22,7 +22,7 @@ class Group {
         // User said: "See my own group... show this is my shared group... and save count".
         // Use CASE to mark is_owner.
         const sql = `
-            SELECT g.*, u.name as owner_name,
+            SELECT g.*, u.name as owner_name, u.avatar_url as owner_avatar,
                    CASE WHEN g.user_id = ? THEN 1 ELSE 0 END as is_owner,
                    CASE WHEN sg.id IS NOT NULL THEN 1 ELSE 0 END as is_saved_by_me,
                    (SELECT COUNT(*) FROM saved_groups WHERE group_id = g.id) as save_count

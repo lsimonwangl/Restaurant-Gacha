@@ -27,12 +27,12 @@ const upload = multer({
         if (mimetype && extname) {
             return cb(null, true);
         }
-        cb(new Error('Only user_id specific image files are allowed!'));
+        cb(new Error('Only image files (jpg, jpeg, png, gif, webp) are allowed!'));
     }
 });
 
 // Upload function to S3
-const uploadToS3 = async (file) => {
+const uploadToS3 = async (file, folder = 'dishes') => {
     const fileExtension = path.extname(file.originalname);
     const fileName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
 
@@ -40,7 +40,7 @@ const uploadToS3 = async (file) => {
         client: s3,
         params: {
             Bucket: process.env.AWS_BUCKET_NAME,
-            Key: `dishes/${fileName}`,
+            Key: `${folder}/${fileName}`,
             Body: file.buffer,
             ContentType: file.mimetype,
             // ACL: 'public-read' // Check if bucket allows ACLs. Usually better to use Bucket Policy.
@@ -50,7 +50,7 @@ const uploadToS3 = async (file) => {
     try {
         const result = await upload.done();
         // Construct public URL. If bucket is public:
-        return `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/dishes/${fileName}`;
+        return `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${folder}/${fileName}`;
         // Or result.Location if returned.
     } catch (error) {
         console.error('S3 Upload Error:', error); // Log the full error

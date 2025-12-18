@@ -77,7 +77,11 @@ onMounted(() => {
             <div class="group-header">
                 <h3>{{ group.name }}</h3>
                 <span v-if="group.is_owner" class="badge-owner">我分享的</span>
-                <span v-else class="group-owner">by {{ group.owner_name }}</span>
+                <div v-else class="owner-info">
+                    <img v-if="group.owner_avatar" :src="group.owner_avatar" class="owner-avatar">
+                    <span v-else class="owner-avatar-placeholder">👤</span>
+                    <span class="group-owner">by {{ group.owner_name }}</span>
+                </div>
             </div>
             
             <p class="group-desc">{{ group.description || '沒有描述' }}</p>
@@ -175,8 +179,33 @@ onMounted(() => {
 }
 
 .group-owner {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     color: var(--text-muted);
+}
+
+.owner-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.owner-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.owner-avatar-placeholder {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
 }
 
 .badge-owner {

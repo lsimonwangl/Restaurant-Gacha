@@ -36,11 +36,58 @@ export const useAuthStore = defineStore('auth', {
                 this.user = {
                     id: response.data._id,
                     name: response.data.name,
-                    email: response.data.email
+                    email: response.data.email,
+                    avatar_url: response.data.avatar_url
                 };
                 localStorage.setItem('token', this.token);
             } catch (err) {
                 this.error = err.response?.data?.message || 'Login failed';
+                throw err;
+            } finally {
+                this.loading = false;
+            }
+        },
+        async updateProfile(formData) {
+            this.loading = true;
+            this.error = null;
+            try {
+                const response = await authApi.updateProfile(formData);
+                this.user = {
+                    ...this.user,
+                    name: response.data.name,
+                    avatar_url: response.data.avatar_url
+                };
+                if (response.data.token) {
+                    this.token = response.data.token;
+                    localStorage.setItem('token', this.token);
+                }
+            } catch (err) {
+                this.error = err.response?.data?.message || 'Update failed';
+                throw err;
+            } finally {
+                this.loading = false;
+            }
+        },
+        async changePassword(data) {
+            this.loading = true;
+            this.error = null;
+            try {
+                await authApi.changePassword(data);
+            } catch (err) {
+                this.error = err.response?.data?.message || 'Change password failed';
+                throw err;
+            } finally {
+                this.loading = false;
+            }
+        },
+        async deleteAccount(password) {
+            this.loading = true;
+            this.error = null;
+            try {
+                await authApi.deleteAccount({ password });
+                this.logout();
+            } catch (err) {
+                this.error = err.response?.data?.message || 'Delete account failed';
                 throw err;
             } finally {
                 this.loading = false;
