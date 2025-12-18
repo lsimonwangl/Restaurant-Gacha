@@ -32,6 +32,17 @@ jobs:
         cd backend
         npm install
         
+    - name: Initialize Database
+      run: |
+        cd backend
+        node scripts/init_db.js
+      env:
+        DB_HOST: 127.0.0.1
+        DB_PORT: 3306
+        DB_USER: root
+        DB_PASSWORD: root
+        DB_NAME: restaurant_gacha
+
     - name: Run Tests
       run: |
         cd backend

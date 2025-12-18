@@ -25,7 +25,7 @@ const init = async () => {
         await connection.changeUser({ database: process.env.DB_NAME });
 
         // Read Schema
-        const schemaPath = path.join(__dirname, '../database/schema.sql');
+        const schemaPath = path.join(__dirname, '../../database/schema.sql');
         const schema = fs.readFileSync(schemaPath, 'utf8');
 
         // Execute Schema - Need to split by ; for multiple statements if driver doesn't support multipleStatements by default (mysql2 does if configured, lets try connection.query with multiple enabled or split)
