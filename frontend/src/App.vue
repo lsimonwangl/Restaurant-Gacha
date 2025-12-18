@@ -23,7 +23,7 @@ const logout = () => {
     <div class="logo">
       <RouterLink to="/" class="logo-link">
         <span style="font-size: 1.8rem; margin-right: 0.5rem;">🎰</span>
-        Restaurant Gacha
+        隨食抽
       </RouterLink>
     </div>
     <nav>

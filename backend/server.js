@@ -3,6 +3,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
 const db = require('./config/db');
+const { protect: authenticateToken } = require('./middleware/authMiddleware');
 
 dotenv.config();
 
@@ -15,10 +16,13 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 // Routes
-const authRoutes = require('./routes/authRoutes');
 const dishRoutes = require('./routes/dishRoutes');
-const groupRoutes = require('./routes/groupRoutes');
 const gachaRoutes = require('./routes/gachaRoutes');
+const groupRoutes = require('./routes/groupRoutes');
+const authRoutes = require('./routes/authRoutes');
+
+// DEBUG ENDPOINT
+
 
 app.use('/api/auth', authRoutes);
 app.use('/api/dishes', dishRoutes);

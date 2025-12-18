@@ -5,6 +5,9 @@ export const groupsApi = {
     getAll() {
         return axios.get('/groups');
     },
+    getUserGroups() {
+        return this.getAll();
+    },
     getExplore() {
         return axios.get('/groups/explore');
     },

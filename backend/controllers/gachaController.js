@@ -100,7 +100,8 @@ const getHistory = async (req, res) => {
     const userId = req.user.id;
     try {
         const [rows] = await db.query(
-            `SELECT dr.id, dr.created_at, d.name, d.image_url, dr.rarity 
+            `SELECT dr.id, dr.created_at, d.name, d.image_url, dr.rarity,
+            (SELECT GROUP_CONCAT(group_id) FROM dish_groups WHERE dish_id = d.id) as group_ids 
        FROM \`draws\` dr
        JOIN \`dishes\` d ON dr.dish_id = d.id
        WHERE dr.user_id = ?
