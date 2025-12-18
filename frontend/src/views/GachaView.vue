@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
-import axios from '../axios'
+import { groupsApi } from '../api/groups'
+import { gachaApi } from '../api/gacha'
 import { useAuthStore } from '../stores/auth'
 
 const result = ref(null)
@@ -13,7 +14,7 @@ const selectedGroup = ref(null)
 // For now, mock or try fetch
 const fetchGroups = async () => {
     try {
-        const res = await axios.get('/groups')
+        const res = await groupsApi.getAll()
         groups.value = res.data
         if (groups.value.length > 0) selectedGroup.value = groups.value[0].id
     } catch (e) {
@@ -38,7 +39,7 @@ const draw = async () => {
     await new Promise(r => setTimeout(r, 1000))
 
     try {
-        const res = await axios.post('/gacha/draw', { groupId: selectedGroup.value })
+        const res = await gachaApi.draw(selectedGroup.value)
         result.value = res.data
     } catch (e) {
         error.value = e.response?.data?.message || '抽卡失敗，請檢查網路或伺服器'

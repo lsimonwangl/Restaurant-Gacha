@@ -1,7 +1,8 @@
 <script setup>
 import { useAuthStore } from '../stores/auth'
 import { ref, onMounted } from 'vue'
-import axios from '../axios'
+import { gachaApi } from '../api/gacha'
+import { dishesApi } from '../api/dishes'
 
 const authStore = useAuthStore()
 const lastDraw = ref(null)
@@ -12,8 +13,8 @@ const dishes = ref([])
 const fetchStats = async () => {
   try {
     const [historyRes, dishesRes] = await Promise.all([
-      axios.get('/gacha/history'),
-      axios.get('/dishes')
+      gachaApi.getHistory(),
+      dishesApi.getAll()
     ])
 
     // Process history for today

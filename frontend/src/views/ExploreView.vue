@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from '../axios'
+import { groupsApi } from '../api/groups'
 
 const publicGroups = ref([])
 const loading = ref(true)
@@ -14,7 +14,7 @@ const loadingDishes = ref(false)
 const fetchExplore = async () => {
     loading.value = true
     try {
-        const res = await axios.get('/groups/explore')
+        const res = await groupsApi.getExplore()
         publicGroups.value = res.data
     } catch (e) {
         console.error(e)
@@ -27,11 +27,11 @@ const fetchExplore = async () => {
 const toggleSave = async (group) => {
     try {
         if (group.is_saved_by_me) {
-             await axios.delete(`/groups/${group.id}/save`)
+             await groupsApi.unsave(group.id)
              group.is_saved_by_me = 0
              group.save_count--
         } else {
-             await axios.post(`/groups/${group.id}/save`)
+             await groupsApi.save(group.id)
              group.is_saved_by_me = 1
              group.save_count++
         }
@@ -46,7 +46,7 @@ const openDetails = async (group) => {
     groupDishes.value = []
     loadingDishes.value = true
     try {
-        const res = await axios.get(`/groups/${group.id}/dishes`)
+        const res = await groupsApi.getDishes(group.id)
         groupDishes.value = res.data
     } catch (e) {
         alert('無法載入餐廳列表')

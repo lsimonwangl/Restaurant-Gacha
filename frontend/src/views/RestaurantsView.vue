@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
-import axios from '../axios'
+import { groupsApi } from '../api/groups'
+import { dishesApi } from '../api/dishes'
 
 const dishes = ref([])
 const groups = ref([])
@@ -20,7 +21,7 @@ const selectedGroupFilter = ref(null) // For filtering view
 const fetchDishes = async () => {
     loading.value = true
     try {
-        const res = await axios.get('/dishes')
+        const res = await dishesApi.getAll()
         dishes.value = res.data
     } catch (e) {
         console.error(e)
@@ -31,7 +32,7 @@ const fetchDishes = async () => {
 
 const fetchGroups = async () => {
     try {
-        const res = await axios.get('/groups')
+        const res = await groupsApi.getAll()
         groups.value = res.data
     } catch (e) {
         console.error(e)
@@ -49,7 +50,7 @@ const filterByGroup = async (group) => {
     selectedGroupFilter.value = group.id
     loading.value = true
     try {
-        const res = await axios.get(`/groups/${group.id}/dishes`)
+        const res = await groupsApi.getDishes(group.id)
         dishes.value = res.data
     } catch(e) {
         alert('無法取得群組餐廳')
@@ -81,7 +82,7 @@ const createDish = async () => {
             formData.append('image', selectedFile.value)
         }
 
-        await axios.post('/dishes', formData, {
+        await dishesApi.create(formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         })
         
@@ -98,7 +99,7 @@ const createDish = async () => {
 
 const createGroup = async () => {
     try {
-        await axios.post('/groups', { ...newGroup.value, slug: newGroup.value.name }) 
+        await groupsApi.create({ ...newGroup.value, slug: newGroup.value.name }) 
         showCreateGroup.value = false
         newGroup.value = { name: '', description: '', is_public: false }
         fetchGroups()
@@ -110,7 +111,7 @@ const createGroup = async () => {
 const toggleGroupPublic = async (group) => {
     try {
         const newStatus = !group.is_public
-        await axios.put(`/groups/${group.id}`, { is_public: newStatus })
+        await groupsApi.update(group.id, { is_public: newStatus })
         group.is_public = newStatus // Optimistic update
         // fetchGroups() // Optional: refresh to be sure
     } catch (e) {
@@ -127,7 +128,7 @@ const openAddToGroup = (dish) => {
 const addToGroup = async () => {
     if (!selectedGroupId.value) return
     try {
-        await axios.post('/groups/add-dish', { groupId: selectedGroupId.value, dishId: selectedDish.value.id })
+        await groupsApi.addDish(selectedGroupId.value, selectedDish.value.id)
         showAddToGroup.value = false
         alert('已加入群組！')
         fetchDishes()
@@ -139,7 +140,7 @@ const addToGroup = async () => {
 const deleteDish = async(dish) => {
     if(!confirm(`確定要刪除餐廳「${dish.name}」嗎？`)) return;
     try {
-        await axios.delete(`/dishes/${dish.id}`);
+        await dishesApi.delete(dish.id);
         fetchDishes(); // Refresh list
     } catch (e) {
         alert('刪除失敗: ' + (e.response?.data?.message || e.message));
@@ -151,7 +152,7 @@ const removeGroupFromDish = async (dish, groupInfo) => {
     if(!confirm(`確定要將「${dish.name}」從群組「${groupName}」中移除嗎？`)) return;
 
     try {
-        await axios.post('/groups/remove-dish', { groupId, dishId: dish.id });
+        await groupsApi.removeDish(groupId, dish.id);
         fetchDishes(); // Refresh
     } catch (e) {
         alert('移除失敗: ' + (e.response?.data?.message || e.message));
@@ -175,7 +176,7 @@ const openEditGroup = (group) => {
 const updateGroup = async () => {
     if (!editGroupData.value.name) return alert('請輸入名稱')
     try {
-        await axios.put(`/groups/${editGroupData.value.id}`, editGroupData.value)
+        await groupsApi.update(editGroupData.value.id, editGroupData.value)
         showEditGroup.value = false
         // Update local list
         const idx = groups.value.findIndex(g => g.id === editGroupData.value.id)
@@ -189,7 +190,7 @@ const updateGroup = async () => {
 const deleteGroup = async (group) => {
     if (!confirm(`確定要刪除群組「${group.name}」嗎？此動作無法復原！`)) return
     try {
-        await axios.delete(`/groups/${group.id}`)
+        await groupsApi.delete(group.id)
         groups.value = groups.value.filter(g => g.id !== group.id)
         if (selectedGroupFilter.value === group.id) selectedGroupFilter.value = null
     } catch(e) {
@@ -220,7 +221,7 @@ const updateDish = async () => {
             formData.append('image', editFile.value)
         }
 
-        await axios.put(`/dishes/${editDishData.value.id}`, formData, {
+        await dishesApi.update(editDishData.value.id, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         })
         
