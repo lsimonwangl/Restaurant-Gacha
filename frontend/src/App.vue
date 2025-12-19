@@ -16,6 +16,8 @@ const logout = () => {
   authStore.logout()
   window.location.href = '/login' 
 }
+
+const version = __APP_VERSION__
 </script>
 
 <template>
@@ -48,6 +50,10 @@ const logout = () => {
   <main class="container">
     <RouterView />
   </main>
+
+  <footer class="app-footer">
+    <p>Created by William Wang • v{{ version }}</p>
+  </footer>
 </template>
 
 <style scoped>
@@ -187,5 +193,14 @@ nav {
   .divider {
     display: none;
   }
+}
+
+.app-footer {
+  text-align: center;
+  padding: 1.5rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-top: auto; /* Push to bottom if flex column */
+  border-top: 1px solid rgba(255,255,255,0.05);
 }
 </style>
