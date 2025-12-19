@@ -602,4 +602,36 @@ fetchGroups()
 .fade-leave-to {
   opacity: 0;
 }
+
+/* Group Tags */
+.group-list-display {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    /* Removed width: 100% and border to let it flow next to buttons */
+    padding-left: 1rem; /* Add visual separation */
+    border-left: 1px solid rgba(255,255,255,0.2); /* Vertical divider */
+    height: 2rem; /* Align vertically with buttons if needed */
+}
+
+.group-tag-display {
+    padding: 0.2rem 0.8rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.group-tag-display:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.group-tag-display.active {
+    background: var(--primary-glow);
+    border-color: var(--primary-color);
+    color: white;
+}
 </style>

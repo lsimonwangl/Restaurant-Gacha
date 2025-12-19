@@ -1,0 +1,78 @@
+const Dish = require('../models/dishModel');
+const { uploadToS3 } = require('../middleware/uploadMiddleware');
+
+class DishService {
+    static async getAllDishes(userId) {
+        return await Dish.findAll(userId);
+    }
+
+    static async getDishById(id) {
+        const dish = await Dish.findById(id);
+        if (!dish) {
+            throw { statusCode: 404, message: 'Dish not found' };
+        }
+        return dish;
+    }
+
+    static async createDish(userId, dishData, file) {
+        let image_url = dishData.image_url || '';
+
+        if (file) {
+            image_url = await uploadToS3(file, 'dishes');
+        }
+
+        const newDishId = await Dish.create({
+            ...dishData,
+            image_url
+        }, userId);
+
+        return await Dish.findById(newDishId);
+    }
+
+    static async updateDish(id, userId, dishData, file) {
+        const dish = await Dish.findById(id);
+
+        if (!dish) {
+            throw { statusCode: 404, message: 'Dish not found' };
+        }
+
+        // Authorization Check
+        if (dish.user_id !== userId) {
+            throw { statusCode: 403, message: 'Not authorized to update this dish' };
+        }
+
+        let image_url = dishData.image_url;
+
+        if (file) {
+            image_url = await uploadToS3(file, 'dishes');
+        } else if (image_url === undefined) {
+            // Keep existing if not provided
+            image_url = dish.image_url;
+        }
+
+        await Dish.update(id, {
+            ...dishData,
+            image_url
+        });
+
+        return await Dish.findById(id);
+    }
+
+    static async deleteDish(id, userId) {
+        const dish = await Dish.findById(id);
+
+        if (!dish) {
+            throw { statusCode: 404, message: 'Dish not found' };
+        }
+
+        // Authorization Check
+        if (dish.user_id !== userId) {
+            throw { statusCode: 403, message: 'Not authorized to delete this dish' };
+        }
+
+        await Dish.delete(id);
+        return { message: 'Dish removed' };
+    }
+}
+
+module.exports = DishService;
