@@ -67,6 +67,16 @@ class GachaService {
     static async getHistory(userId) {
         return await Gacha.getDrawHistory(userId);
     }
+
+    static async getStats(userId, groupId = null) {
+        const totalDraws = await Gacha.getDrawCount(userId, groupId);
+        const mostFrequent = await Gacha.getMostFrequent(userId, groupId);
+
+        return {
+            totalDraws,
+            mostFrequent: mostFrequent || null
+        };
+    }
 }
 
 module.exports = GachaService;

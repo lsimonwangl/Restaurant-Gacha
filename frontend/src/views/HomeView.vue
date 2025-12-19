@@ -27,7 +27,7 @@ const greeting = computed(() => {
     return '夜深了，來點宵夜？'
 })
 
-const allDraws = ref([]) // Store full history
+// const allDraws = ref([]) // Removed large state
 
 const savePreference = () => {
     if (defaultGroupId.value) {
@@ -35,55 +35,26 @@ const savePreference = () => {
     }
 }
 
-// Re-calculate stats based on selected group (or all)
-const calculateStats = () => {
-    let targetDraws = allDraws.value
-    
-    // Filter if specific group selected (and not 'all' if we had that option, currently defaultGroupId is mandatory for quick draw)
-    // But for stats viewing, maybe we want 'All' option? User asked "can I see different group stats based on selection".
-    // Current UI ties selection to Quick Draw Target.
-    // Let's assume if a group is selected, we show stats for that group.
-    
-    if (defaultGroupId.value) {
-        targetDraws = allDraws.value.filter(d => {
-            if (!d.group_ids) return false
-            const gIds = d.group_ids.split(',')
-            return gIds.includes(String(defaultGroupId.value))
-        })
-    }
-
-    totalDraws.value = targetDraws.length
-
-    // Calculate Most Frequent
-    const counts = {}
-    targetDraws.forEach(d => {
-        counts[d.name] = (counts[d.name] || 0) + 1
-    })
-    const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1])
-    if (sorted.length > 0) {
-        mostFrequent.value = { name: sorted[0][0], count: sorted[0][1] }
-    } else {
-        mostFrequent.value = null
-    }
-}
-
-// Watch selection to update stats
-import { watch } from 'vue'
-watch(defaultGroupId, () => {
-    calculateStats()
-    savePreference()
-})
-
 const fetchStats = async () => {
   try {
-    const [historyRes, dishesRes, groupsRes] = await Promise.all([
-      gachaApi.getHistory({ _t: Date.now() }), // Cache busting
+    const params = { _t: Date.now() }
+    if (defaultGroupId.value) {
+        params.groupId = defaultGroupId.value
+    }
+
+    const [statsRes, historyRes, dishesRes, groupsRes] = await Promise.all([
+      gachaApi.getStats(params),
+      gachaApi.getHistory({ _t: Date.now() }), // Keep latest history for "Today's Fortune" only
       dishesApi.getAll(),
       groupsApi.getUserGroups()
     ])
     
     userGroups.value = groupsRes.data 
-    allDraws.value = historyRes.data // Save full history
+    // allDraws.value = historyRes.data // Removed: No longer needed for stats
+    
+    // Set Stats from Backend
+    totalDraws.value = statsRes.data.totalDraws
+    mostFrequent.value = statsRes.data.mostFrequent
 
     if (groupsRes.data.length > 0) {
         const saved = localStorage.getItem('quickDrawGroupId')
@@ -91,15 +62,13 @@ const fetchStats = async () => {
         
         if (saved && found) {
              defaultGroupId.value = Number(saved)
-        } else {
+        } else if (!defaultGroupId.value) { // Only set default if not already set
              defaultGroupId.value = groupsRes.data[0].id
         }
     }
     
     if (historyRes.data.length > 0) {
       lastDraw.value = historyRes.data[0]
-      // Initial calculation
-      calculateStats()
     }
 
     dishes.value = dishesRes.data
@@ -110,6 +79,22 @@ const fetchStats = async () => {
     loading.value = false
   }
 }
+
+// Watch selection to update stats ONLY
+import { watch } from 'vue'
+watch(defaultGroupId, async (newVal) => {
+    savePreference()
+    if (newVal) {
+        try {
+            const res = await gachaApi.getStats({ groupId: newVal, _t: Date.now() })
+            totalDraws.value = res.data.totalDraws
+            mostFrequent.value = res.data.mostFrequent
+        } catch (e) {
+            console.error('Update stats failed', e)
+        }
+    }
+})
+
 
 const quickDraw = async () => {
     if (!defaultGroupId.value) return

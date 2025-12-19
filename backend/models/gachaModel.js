@@ -49,6 +49,44 @@ class Gacha {
         );
         return rows;
     }
+
+    static async getDrawCount(userId, groupId = null) {
+        let sql = 'SELECT COUNT(DISTINCT dr.id) as count FROM `draws` dr';
+        const params = [];
+
+        if (groupId) {
+            sql += ' JOIN `dish_groups` dg ON dr.dish_id = dg.dish_id WHERE dr.user_id = ? AND dg.group_id = ?';
+            params.push(userId, groupId);
+        } else {
+            sql += ' WHERE dr.user_id = ?';
+            params.push(userId);
+        }
+
+        const [rows] = await db.query(sql, params);
+        return rows[0].count;
+    }
+
+    static async getMostFrequent(userId, groupId = null) {
+        let sql = `
+            SELECT d.name, COUNT(*) as count 
+            FROM \`draws\` dr
+            JOIN \`dishes\` d ON dr.dish_id = d.id
+        `;
+        const params = [];
+
+        if (groupId) {
+            sql += ' JOIN `dish_groups` dg ON dr.dish_id = dg.dish_id WHERE dr.user_id = ? AND dg.group_id = ?';
+            params.push(userId, groupId);
+        } else {
+            sql += ' WHERE dr.user_id = ?';
+            params.push(userId);
+        }
+
+        sql += ' GROUP BY d.id, d.name ORDER BY count DESC LIMIT 1';
+
+        const [rows] = await db.query(sql, params);
+        return rows[0];
+    }
 }
 
 module.exports = Gacha;

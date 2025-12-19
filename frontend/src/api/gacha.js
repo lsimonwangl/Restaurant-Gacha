@@ -6,5 +6,8 @@ export const gachaApi = {
     },
     getHistory(params) {
         return axios.get('/gacha/history', { params });
+    },
+    getStats(params) {
+        return axios.get('/gacha/stats', { params });
     }
 };

@@ -28,4 +28,15 @@ const getHistory = async (req, res) => {
     }
 };
 
-module.exports = { drawDish, getHistory };
+const getStats = async (req, res) => {
+    const userId = req.user.id;
+    const { groupId } = req.query; // Optional filter
+    try {
+        const stats = await GachaService.getStats(userId, groupId);
+        res.json(stats);
+    } catch (error) {
+        handleServiceError(res, error);
+    }
+};
+
+module.exports = { drawDish, getHistory, getStats };
