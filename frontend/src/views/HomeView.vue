@@ -311,9 +311,14 @@ onMounted(async () => {
   flex-direction: column;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   justify-content: flex-start; /* Changed from default to explicit start, though default is start */
+  height: 100%; /* Ensure card fills the grid cell height */
 }
 
 /* ... existing hover ... */
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5); /* Enhanced shadow for depth */
+}
 
 .stat-card h3 {
     font-size: 1.4rem;

@@ -159,6 +159,35 @@ const removeGroupFromDish = async (dish, groupInfo) => {
     }
 }
 
+// Text Expansion Logic
+const expandedDishId = ref(null)
+const wrapperHeights = ref({})
+
+const toggleExpand = (id, event) => {
+    // If clicking the same already expanded card, close it
+    if (expandedDishId.value === id) {
+        expandedDishId.value = null
+        return
+    }
+
+    // Measure height before expanding
+    // We need to find the specific card element
+    // Since we are inside v-for, event.target is closest. 
+    // We aim for the .card-wrapper
+    const card = event.target.closest('.dish-card')
+    const wrapper = card.parentElement
+    if (wrapper) {
+        wrapperHeights.value[id] = wrapper.offsetHeight
+    }
+
+    expandedDishId.value = id
+}
+
+const closeExpand = () => {
+    expandedDishId.value = null
+    wrapperHeights.value = {}
+}
+
 // Edit Logic
 const showEditDish = ref(false)
 const editDishData = ref({ id: null, name: '', description: '', rarity: 'common' })
@@ -240,7 +269,12 @@ fetchGroups()
 
 <template>
   <div class="list-container">
-    <div class="glass-panel" style="padding: 2rem; width: 100%; max-width: 1200px;">
+    <div class="glass-panel" style="padding: 2rem; width: 100%; max-width: 1200px; overflow: visible;">
+      <!-- Backdrop for closing expanded card (Moved inside to respect stacking context) -->
+      <transition name="fade">
+        <div v-if="expandedDishId" class="click-outside-overlay" @click="closeExpand"></div>
+      </transition>
+
       <h2>餐廳列表</h2>
       
       <div class="actions" style="margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
@@ -267,36 +301,52 @@ fetchGroups()
       </div>
 
       <div v-else class="dish-grid">
-        <div v-for="dish in dishes" :key="dish.id" class="dish-card" :class="dish.rarity">
-           <img v-if="dish.image_url" :src="dish.image_url" alt="Food" class="card-img">
-           <div class="card-body">
-             <h3>{{ dish.name }}</h3>
-             <span class="badge">{{ dish.rarity === 'common' ? '普通' : dish.rarity === 'rare' ? '稀有' : '史詩' }}</span>
-             <p v-if="dish.description">{{ dish.description }}</p>
-             
-             
-             <div class="card-footer">
-                 <!-- Group Tags -->
-                 <div class="card-groups" v-if="dish.group_info">
-                    <span v-for="(gItem, idx) in dish.group_info.split('|||')" :key="idx" 
-                          class="mini-group-tag clickable"
-                          @click="removeGroupFromDish(dish, gItem)"
-                          title="點擊移除群組">
-                        <span>{{ gItem.split(':')[1] }}</span>
-                        <span class="remove-x">×</span>
-                    </span>
+        <div v-for="dish in dishes" 
+             :key="dish.id" 
+             class="card-wrapper"
+             :style="{ height: expandedDishId === dish.id ? wrapperHeights[dish.id] + 'px' : 'auto' }">
+            
+            <div class="dish-card" 
+                 :class="[dish.rarity, { 'floating-active': expandedDishId === dish.id }]">
+               <div class="card-image-wrapper">
+                   <img v-if="dish.image_url" :src="dish.image_url" alt="Food" class="card-img">
+                   <div v-else class="card-img-placeholder">🍽️</div>
+                   <span class="badge-overlay">{{ dish.rarity === 'common' ? '普通' : dish.rarity === 'rare' ? '稀有' : '史詩' }}</span>
+               </div>
+               <div class="card-body">
+                 <h3>{{ dish.name }}</h3>
+                 <p v-if="dish.description" 
+                    class="description-text" 
+                    :class="{ expanded: expandedDishId === dish.id }"
+                    @click="(e) => toggleExpand(dish.id, e)"
+                    title="點擊展開/收合">
+                    {{ dish.description }}
+                 </p>
+                 
+                 
+                 <div class="card-footer">
+                     <!-- Group Tags -->
+                     <div class="card-groups" v-if="dish.group_info">
+                        <span v-for="(gItem, idx) in dish.group_info.split('|||')" :key="idx" 
+                              class="mini-group-tag clickable"
+                              @click.stop="removeGroupFromDish(dish, gItem)"
+                              title="點擊移除群組">
+                            <span>{{ gItem.split(':')[1] }}</span>
+                            <span class="remove-x">×</span>
+                        </span>
+                     </div>
+                     <div class="card-actions">
+                        <button class="btn-small" @click.stop="openAddToGroup(dish)">加入群組</button>
+                        <button class="btn-small btn-edit" @click.stop="openEditDish(dish)">✏️</button>
+                        <button class="btn-small btn-danger" @click.stop="deleteDish(dish)">🗑️</button>
+                     </div>
                  </div>
-                 <div class="card-actions">
-                    <button class="btn-small" @click="openAddToGroup(dish)">加入群組</button>
-                    <button class="btn-small btn-edit" @click="openEditDish(dish)">✏️</button>
-                    <button class="btn-small btn-danger" @click="deleteDish(dish)">🗑️</button>
-                 </div>
-             </div>
-           </div>
+               </div>
+            </div>
         </div>
       </div>
     </div>
-
+    
     <!-- Create Dish Modal -->
     <div v-if="showCreateDish" class="modal-overlay">
       <div class="glass-panel modal">
@@ -449,6 +499,11 @@ fetchGroups()
   margin-top: 1.5rem;
 }
 
+.card-wrapper {
+  position: relative;
+  /* width and height are managed by grid */
+}
+
 .dish-card {
   background: var(--card-bg);
   border-radius: 12px;
@@ -458,6 +513,44 @@ fetchGroups()
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  height: 100%; /* Fill wrapper */
+  width: 100%;
+}
+
+.dish-card.floating-active {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: auto;
+  min-height: 100%;
+  z-index: 100;
+  transform: scale(1.05); /* Slightly larger */
+  animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* Spring bounce */
+}
+
+/* Base Shadow */
+.dish-card.floating-active {
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8);
+}
+
+/* Rarity Neon Glows for Floating State */
+.dish-card.floating-active.common {
+    box-shadow: 0 0 20px rgba(148, 163, 184, 0.4), 0 25px 50px -12px rgba(0,0,0,0.8);
+    border-color: #94a3b8;
+}
+.dish-card.floating-active.rare {
+    box-shadow: 0 0 25px rgba(59, 130, 246, 0.5), 0 25px 50px -12px rgba(0,0,0,0.8);
+    border-color: #60a5fa;
+}
+.dish-card.floating-active.epic {
+    box-shadow: 0 0 30px rgba(139, 92, 246, 0.6), 0 25px 50px -12px rgba(0,0,0,0.8);
+    border-color: #a78bfa;
+}
+
+@keyframes popIn {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1.05); }
 }
 
 .dish-card:hover {
@@ -479,12 +572,23 @@ fetchGroups()
   transition: transform 0.5s;
 }
 
+.card-img-placeholder {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 3rem;
+  color: var(--text-muted);
+}
+
 .dish-card:hover .card-img {
     transform: scale(1.05);
 }
 
 .card-body {
-  padding: 1.2rem;
+  padding: 0.8rem; /* Further reduced padding */
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -492,32 +596,50 @@ fetchGroups()
 }
 
 .card-body h3 {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
+    padding-bottom: 0.2rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     font-size: 1.2rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.badge {
-  display: inline-block;
-  font-size: 0.75rem;
-  padding: 2px 8px;
-  border-radius: 12px;
-  background: rgba(255,255,255,0.1);
-  color: var(--text-muted);
-  font-weight: 600;
-  margin-bottom: 0.8rem;
+.card-body p.description-text {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.35; /* Tighter line height */
+    margin-bottom: 0.5rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* Reduce to 2 lines */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer; /* Indicate it's clickable */
+    transition: all 0.3s ease; /* Smooth transition */
+}
+
+.card-body p.description-text.expanded {
+    -webkit-line-clamp: unset; /* Remove limit */
+    color: var(--text-main); /* Highlight text slightly when expanded */
 }
 
 .dish-card.rare .badge { color: #60a5fa; background: rgba(59, 130, 246, 0.1); }
 .dish-card.epic .badge { color: #a78bfa; background: rgba(139, 92, 246, 0.1); }
+/* Old badge styles removed */
+
+/* Card Footer & Actions */
+.card-footer {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+}
 
 .card-actions {
     display: flex;
     gap: 0.5rem;
-    margin-top: auto;
-    padding-top: 1rem;
+    margin-top: 0.5rem;
+    padding-top: 0.8rem;
     border-top: 1px solid rgba(255,255,255,0.1);
 }
 
@@ -571,9 +693,35 @@ fetchGroups()
 .btn-danger:hover {
     background: rgba(239, 68, 68, 0.1);
     border-color: #ef4444;
-    color: #ef4444;
+    color: var(--text-muted);
 }
 
+.card-image-wrapper {
+  position: relative;
+  width: 100%;
+  display: block; /* Ensure it behaves as a container */
+  border-top: 5px solid transparent; /* Thicker rarity line */
+}
+
+/* Rarity specific border lines on image wrapper */
+.dish-card.common .card-image-wrapper { border-top-color: #64748b; }
+.dish-card.rare .card-image-wrapper { border-top-color: #3b82f6; }
+.dish-card.epic .card-image-wrapper { border-top-color: #8b5cf6; }
+
+.badge-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  z-index: 10;
+  color: white;
+  pointer-events: none; /* Let clicks pass through to image if needed */
+}
 .group-tag-display {
     background: rgba(0, 0, 0, 0.3);
     padding: 4px 12px;
@@ -682,5 +830,26 @@ fetchGroups()
     border-color: #10b981;
     color: #10b981;
     background: rgba(16, 185, 129, 0.1);
+}
+
+.click-outside-overlay {
+    position: absolute; /* Changed from fixed */
+    inset: 0; /* Cover the parent glass-panel */
+    z-index: 50;
+    background: rgba(0,0,0,0.4); 
+    backdrop-filter: blur(4px); /* Slightly reduced blur for localized effect */
+    border-radius: 16px; /* Match panel radius */
+    cursor: default;
+    animation: fadeIn 0.3s ease;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
