@@ -1,16 +1,18 @@
 const db = require('../config/db');
 
 class Gacha {
-    static async getDailyDrawCount(userId) {
-        const [rows] = await db.query(
+    static async getDailyDrawCount(userId, connection = null) {
+        const queryExecutor = connection || db;
+        const [rows] = await queryExecutor.query(
             'SELECT COUNT(*) as count FROM `draws` WHERE user_id = ? AND DATE(created_at) = CURDATE()',
             [userId]
         );
         return rows[0].count;
     }
 
-    static async getValidDishCount(groupId, rarity) {
-        const [rows] = await db.query(
+    static async getValidDishCount(groupId, rarity, connection = null) {
+        const queryExecutor = connection || db;
+        const [rows] = await queryExecutor.query(
             `SELECT COUNT(*) as count FROM \`dishes\` d
              JOIN \`dish_groups\` dg ON d.id = dg.dish_id
              WHERE dg.group_id = ? AND d.rarity = ?`,
@@ -19,8 +21,9 @@ class Gacha {
         return rows[0].count;
     }
 
-    static async getDishByOffset(groupId, rarity, offset) {
-        const [dishes] = await db.query(
+    static async getDishByOffset(groupId, rarity, offset, connection = null) {
+        const queryExecutor = connection || db;
+        const [dishes] = await queryExecutor.query(
             `SELECT d.* FROM \`dishes\` d
              JOIN \`dish_groups\` dg ON d.id = dg.dish_id
              WHERE dg.group_id = ? AND d.rarity = ?
@@ -30,8 +33,9 @@ class Gacha {
         return dishes[0];
     }
 
-    static async createDraw(userId, dishId, rarity) {
-        await db.query(
+    static async createDraw(userId, dishId, rarity, connection = null) {
+        const queryExecutor = connection || db;
+        await queryExecutor.query(
             'INSERT INTO `draws` (user_id, dish_id, rarity) VALUES (?, ?, ?)',
             [userId, dishId, rarity]
         );

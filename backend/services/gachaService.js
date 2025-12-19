@@ -1,4 +1,5 @@
 const Gacha = require('../models/gachaModel');
+const db = require('../config/db'); // Import DB for transactions
 
 const DAILY_LIMIT = 5;
 
@@ -13,55 +14,68 @@ class GachaService {
     }
 
     static async drawDish(userId, groupId) {
-        // 1. Check Daily Limit (目前需求說先關閉但保留邏輯)
-        const drawCount = await Gacha.getDailyDrawCount(userId);
-        // if (drawCount >= DAILY_LIMIT) {
-        //     throw { statusCode: 403, message: '每日抽卡次數已達上限' };
-        // }
+        const connection = await db.getConnection();
+        try {
+            await connection.beginTransaction();
 
-        // 2. 決定稀有度
-        let rarity = this._rollRarity();
+            // 1. Check Daily Limit
+            const drawCount = await Gacha.getDailyDrawCount(userId, connection);
+            // if (drawCount >= DAILY_LIMIT) {
+            //     throw { statusCode: 403, message: '每日抽卡次數已達上限' };
+            // }
 
-        // 3. 確認該稀有度是否有菜色 (Smart Fallback)
-        let count = await Gacha.getValidDishCount(groupId, rarity);
+            // 2. 決定稀有度
+            let rarity = this._rollRarity();
 
-        if (count === 0) {
-            const rarities = ['common', 'rare', 'epic'];
-            // 排除剛才抽到的空稀有度
-            const others = rarities.filter(r => r !== rarity);
+            // 3. 確認該稀有度是否有菜色
+            let count = await Gacha.getValidDishCount(groupId, rarity, connection);
 
-            for (const r of others) {
-                count = await Gacha.getValidDishCount(groupId, r);
-                if (count > 0) {
-                    rarity = r;
-                    break;
+            if (count === 0) {
+                const rarities = ['common', 'rare', 'epic'];
+                const others = rarities.filter(r => r !== rarity);
+
+                for (const r of others) {
+                    count = await Gacha.getValidDishCount(groupId, r, connection);
+                    if (count > 0) {
+                        rarity = r;
+                        break;
+                    }
                 }
             }
+
+            if (count === 0) {
+                throw { statusCode: 404, message: '此群組中沒有餐廳可供抽取' };
+            }
+
+            // 4. Random Offset
+            const offset = Math.floor(Math.random() * count);
+
+            // 5. Fetch Dish
+            const dish = await Gacha.getDishByOffset(groupId, rarity, offset, connection);
+
+            if (!dish) {
+                // 如果發生，因為有 Transaction + Row locks (雖然這裡是讀所以可能要 FOR UPDATE?)
+                // 在預設 Isolation level 主要是防止不一致。
+                throw { statusCode: 404, message: 'Dish not found during draw attempt' };
+            }
+
+            // 6. Record Draw
+            await Gacha.createDraw(userId, dish.id, rarity, connection);
+
+            await connection.commit();
+
+            return {
+                dish,
+                rarity_rolled: rarity,
+                remaining: 9999
+            };
+
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
         }
-
-        if (count === 0) {
-            throw { statusCode: 404, message: '此群組中沒有餐廳可供抽取' };
-        }
-
-        // 4. Random Offset
-        const offset = Math.floor(Math.random() * count);
-
-        // 5. Fetch Dish
-        const dish = await Gacha.getDishByOffset(groupId, rarity, offset);
-
-        if (!dish) {
-            // 理論上不該發生，因為前面有點過數量
-            throw { statusCode: 404, message: 'Dish not found during draw' };
-        }
-
-        // 6. Record Draw
-        await Gacha.createDraw(userId, dish.id, rarity);
-
-        return {
-            dish,
-            rarity_rolled: rarity,
-            remaining: 9999 // Unlimited for now
-        };
     }
 
     static async getHistory(userId) {
