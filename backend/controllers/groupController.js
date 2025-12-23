@@ -7,7 +7,7 @@ const handleServiceError = (res, error) => {
 
 const getGroups = async (req, res) => {
     try {
-        const groups = await GroupService.getUserGroups(req.user.id);
+        const groups = await GroupService.getUserGroups(req.user.id, req.query.type);
         res.json(groups);
     } catch (error) {
         handleServiceError(res, error);

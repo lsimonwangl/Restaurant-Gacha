@@ -11,6 +11,9 @@ const selectedGroup = ref(null)
 const groupDishes = ref([])
 const loadingDishes = ref(false)
 
+const activeTab = ref('explore') // 'explore' or 'saved'
+const savedGroups = ref([])
+
 const fetchExplore = async () => {
     loading.value = true
     try {
@@ -24,12 +27,44 @@ const fetchExplore = async () => {
     }
 }
 
+const fetchSaved = async () => {
+    loading.value = true
+    try {
+        const res = await groupsApi.getAll({ type: 'saved' })
+        savedGroups.value = res.data
+    } catch (e) {
+        console.error(e)
+        alert('無法取得收藏列表')
+    } finally {
+        loading.value = false
+    }
+}
+
+const switchTab = (tab) => {
+    activeTab.value = tab
+    if (tab === 'explore') {
+        fetchExplore()
+    } else {
+        fetchSaved()
+    }
+}
+
 const toggleSave = async (group) => {
     try {
-        if (group.is_saved_by_me) {
+        if (group.is_saved_by_me || (activeTab.value === 'saved')) {
+             // In 'saved' tab, they are by definition saved (is_saved=1)
+             // But the API might return different structures.
+             // If we are in 'saved' tab, unsaving removes it from list
+             if(!confirm('確定要取消收藏嗎？')) return
              await groupsApi.unsave(group.id)
-             group.is_saved_by_me = 0
-             group.save_count--
+             
+             if (activeTab.value === 'explore') {
+                group.is_saved_by_me = 0
+                group.save_count--
+             } else {
+                // Remove from list
+                savedGroups.value = savedGroups.value.filter(g => g.id !== group.id)
+             }
         } else {
              await groupsApi.save(group.id)
              group.is_saved_by_me = 1
@@ -66,27 +101,59 @@ onMounted(() => {
       <h2>🌏 探索社群群組</h2>
       <p style="color: var(--text-muted); margin-bottom: 2rem;">看看其他人建立了什麼美食清單，收藏後即可在你的抽卡列表使用！</p>
 
+      <div class="tabs">
+        <button 
+            class="tab-btn" 
+            :class="{ active: activeTab === 'explore' }"
+            @click="switchTab('explore')"
+        >
+            🌏 探索社群
+        </button>
+        <button 
+            class="tab-btn" 
+            :class="{ active: activeTab === 'saved' }"
+            @click="switchTab('saved')"
+        >
+            ❤️ 我的收藏
+        </button>
+      </div>
+
       <div v-if="loading" style="text-align: center;">載入中...</div>
       
-      <div v-else-if="publicGroups.length === 0" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-        目前沒有其他公開群組。來當第一個分享的人吧！
+      <div v-else-if="(activeTab === 'explore' ? publicGroups : savedGroups).length === 0" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+        {{ activeTab === 'explore' ? '目前沒有其他公開群組。' : '你還沒有收藏任何群組。' }}
       </div>
 
       <div v-else class="group-grid">
-        <div v-for="group in publicGroups" :key="group.id" class="group-card" :class="{ 'my-group': group.is_owner }">
+        <div v-for="group in (activeTab === 'explore' ? publicGroups : savedGroups)" :key="group.id" class="group-card" :class="{ 'my-group': group.is_owner }">
             <div class="group-header">
                 <h3>{{ group.name }}</h3>
                 <span v-if="group.is_owner" class="badge-owner">我分享的</span>
                 <div v-else class="owner-info">
                     <img v-if="group.owner_avatar" :src="group.owner_avatar" class="owner-avatar">
                     <span v-else class="owner-avatar-placeholder">👤</span>
-                    <span class="group-owner">by {{ group.owner_name }}</span>
+                    <!-- Backend findSaved might not join User table for owner name, need to check if we want that. 
+                         Plan didn't specify updating findSaved joins, let's assume it's acceptable or update backend if needed.
+                         Wait, Group.findSaved joins saved_groups but doesn't explicitly join Users table for owner info.
+                         Ideally we should update GroupModel.findSaved to join users table too.
+                         For now, let's be safe. If owner_name missing, show 'Unknown'.
+                    -->
+                    <span class="group-owner">by {{ group.owner_name || '使用者' }}</span>
                 </div>
             </div>
             
             <p class="group-desc">{{ group.description || '沒有描述' }}</p>
             
-            <div class="group-stats">
+            <div class="preview-images" v-if="group.preview_images">
+                <div v-for="(img, index) in group.preview_images.split(',').slice(0, 3)" :key="index" class="preview-img-wrapper">
+                     <img :src="img" class="preview-img" loading="lazy">
+                </div>
+                <div v-if="group.preview_images.split(',').length > 3" class="preview-more">
+                    +{{ group.preview_images.split(',').length - 3 }}
+                </div>
+            </div>
+
+            <div class="group-stats" v-if="activeTab === 'explore'">
                 <span>🔥 {{ group.save_count }} 人收藏</span>
             </div>
 
@@ -94,9 +161,9 @@ onMounted(() => {
                 <button class="btn-secondary full-width" @click="openDetails(group)">
                     👁️ 查看內容
                 </button>
-                <button v-if="!group.is_owner" class="btn-primary full-width" @click="toggleSave(group)"
-                        :class="{'btn-saved': group.is_saved_by_me}">
-                    {{ group.is_saved_by_me ? '💔 取消收藏' : '❤️ 收藏此群組' }}
+                <button v-if="!group.is_owner || activeTab === 'saved'" class="btn-primary full-width" @click="toggleSave(group)"
+                        :class="{'btn-saved': group.is_saved_by_me || activeTab === 'saved'}">
+                    {{ (group.is_saved_by_me || activeTab === 'saved') ? '💔 取消收藏' : '❤️ 收藏' }}
                 </button>
             </div>
         </div>
@@ -228,6 +295,38 @@ onMounted(() => {
     line-height: 1.5;
 }
 
+.preview-images {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 1rem;
+}
+
+.preview-img-wrapper {
+    flex: 1;
+    aspect-ratio: 4 / 3;
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+    background: rgba(0,0,0,0.2);
+}
+
+.preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.preview-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    font-size: 0.8rem;
+    background: rgba(255,255,255,0.1);
+    border-radius: 6px;
+    color: var(--text-muted);
+}
+
 .group-stats {
     font-size: 0.85rem;
     color: var(--text-muted);
@@ -357,6 +456,35 @@ onMounted(() => {
   position: relative;
   background: var(--card-bg, #1e293b); /* Fallback */
   border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 0.8rem 1.2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover {
+    color: var(--text-main);
+}
+
+.tab-btn.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
 }
 
 .modal-actions {

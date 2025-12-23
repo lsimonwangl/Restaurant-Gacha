@@ -3,7 +3,12 @@ const Group = require('../models/groupModel');
 class GroupService {
 
     // 取得使用者群組
-    static async getUserGroups(userId) {
+    static async getUserGroups(userId, type = 'all') {
+        if (type === 'owned') {
+            return await Group.findOwned(userId);
+        } else if (type === 'saved') {
+            return await Group.findSaved(userId);
+        }
         return await Group.findAll(userId);
     }
 
@@ -52,7 +57,14 @@ class GroupService {
 
     // 收藏/取消收藏邏輯比較簡單，也可以搬進來
     static async saveGroup(userId, groupId) {
-        // 这里可以加检查：不能收藏自己的群组等
+        const group = await Group.findById(groupId);
+        if (!group) throw { statusCode: 404, message: 'Group not found' };
+
+        // Business Rule: Cannot save own group
+        if (group.user_id === userId) {
+            throw { statusCode: 400, message: 'Cannot save your own group' };
+        }
+
         await Group.save(userId, groupId);
     }
 

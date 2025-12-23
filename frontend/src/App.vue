@@ -29,7 +29,7 @@ const version = __APP_VERSION__
       </RouterLink>
     </div>
     <nav>
-      <RouterLink to="/restaurants" class="nav-link">餐廳列表</RouterLink>
+      <RouterLink to="/restaurants" class="nav-link">我的餐廳</RouterLink>
       <RouterLink to="/explore" class="nav-link">探索社群</RouterLink>
       <div class="divider"></div>
       <RouterLink v-if="!isAuthenticated" to="/login" class="nav-link">登入</RouterLink>

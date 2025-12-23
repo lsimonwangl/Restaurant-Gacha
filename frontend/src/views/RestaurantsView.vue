@@ -33,7 +33,7 @@ const fetchDishes = async () => {
 
 const fetchGroups = async () => {
     try {
-        const res = await groupsApi.getAll()
+        const res = await groupsApi.getAll({ type: 'owned' })
         groups.value = res.data
     } catch (e) {
         console.error(e)
@@ -276,7 +276,7 @@ fetchGroups()
         <div v-if="expandedDishId" class="click-outside-overlay" @click="closeExpand"></div>
       </transition>
 
-      <h2>餐廳列表</h2>
+      <h2>我的餐廳</h2>
       
       <div class="actions" style="margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
         <button class="btn-primary" @click="showCreateDish = true">➕ 新增餐廳</button>

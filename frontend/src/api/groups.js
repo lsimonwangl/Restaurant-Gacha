@@ -2,8 +2,8 @@ import axios from '../axios';
 
 export const groupsApi = {
     // Basic CRUD
-    getAll() {
-        return axios.get('/groups');
+    getAll(params = {}) {
+        return axios.get('/groups', { params });
     },
     getUserGroups() {
         return this.getAll();

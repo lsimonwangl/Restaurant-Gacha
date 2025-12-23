@@ -2,7 +2,7 @@ const db = require('../config/db');
 
 class Group {
     static async findAll(userId) {
-        // Find both Owned groups AND Saved groups
+        // Deprecated or 'all' mode: Find both Owned groups AND Saved groups
         const sql = `
             SELECT g.*, 
                    CASE WHEN g.user_id = ? THEN 1 ELSE 0 END as is_owner,
@@ -16,16 +16,51 @@ class Group {
         return rows;
     }
 
+    static async findOwned(userId) {
+        const sql = `
+            SELECT g.*, 
+                   1 as is_owner,
+                   0 as is_saved
+            FROM \`groups\` g
+            WHERE g.user_id = ?
+            ORDER BY g.created_at DESC
+        `;
+        const [rows] = await db.query(sql, [userId]);
+        return rows;
+    }
+
+    static async findSaved(userId) {
+        const sql = `
+            SELECT g.*, 
+                   CASE WHEN g.user_id = ? THEN 1 ELSE 0 END as is_owner,
+                   1 as is_saved,
+                   (
+                       SELECT GROUP_CONCAT(d.image_url SEPARATOR ',')
+                       FROM dish_groups dg
+                       JOIN dishes d ON dg.dish_id = d.id
+                       WHERE dg.group_id = g.id
+                   ) as preview_images
+            FROM \`groups\` g
+            JOIN \`saved_groups\` sg ON g.id = sg.group_id
+            WHERE sg.user_id = ? AND g.user_id != ?
+            ORDER BY sg.created_at DESC
+        `;
+        const [rows] = await db.query(sql, [userId, userId, userId]);
+        return rows;
+    }
+
     static async getExplore(userId) {
-        // Find ALL Public groups (including mine), but excluding saved (unless we want to show saved too? User just said "see my own group").
-        // Let's keep "excluding saved" for now or maybe just show all public.
-        // User said: "See my own group... show this is my shared group... and save count".
-        // Use CASE to mark is_owner.
         const sql = `
             SELECT g.*, u.name as owner_name, u.avatar_url as owner_avatar,
                    CASE WHEN g.user_id = ? THEN 1 ELSE 0 END as is_owner,
                    CASE WHEN sg.id IS NOT NULL THEN 1 ELSE 0 END as is_saved_by_me,
-                   (SELECT COUNT(*) FROM saved_groups WHERE group_id = g.id) as save_count
+                   (SELECT COUNT(*) FROM saved_groups WHERE group_id = g.id) as save_count,
+                   (
+                       SELECT GROUP_CONCAT(d.image_url SEPARATOR ',')
+                       FROM dish_groups dg
+                       JOIN dishes d ON dg.dish_id = d.id
+                       WHERE dg.group_id = g.id
+                   ) as preview_images
             FROM \`groups\` g
             JOIN \`users\` u ON g.user_id = u.id
             LEFT JOIN \`saved_groups\` sg ON g.id = sg.group_id AND sg.user_id = ?
