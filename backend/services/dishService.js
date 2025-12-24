@@ -1,4 +1,5 @@
 const Dish = require('../models/dishModel');
+const Group = require('../models/groupModel');
 const { uploadToS3 } = require('../middleware/uploadMiddleware');
 
 class DishService {
@@ -72,6 +73,41 @@ class DishService {
 
         await Dish.delete(id);
         return { message: 'Dish removed' };
+    }
+
+    static async importDish(userId, sourceDishId) {
+        const sourceDish = await Dish.findById(sourceDishId);
+        if (!sourceDish) {
+            throw { statusCode: 404, message: 'Source dish not found' };
+        }
+
+        const newDishId = await Dish.create({
+            name: sourceDish.name,
+            description: sourceDish.description,
+            image_url: sourceDish.image_url,
+            rarity: sourceDish.rarity
+        }, userId);
+
+        return await Dish.findById(newDishId);
+    }
+
+    static async importDishesFromGroup(userId, sourceGroupId) {
+        const dishes = await Group.getDishes(sourceGroupId);
+        if (!dishes || dishes.length === 0) {
+            return { message: 'No dishes to import', count: 0 };
+        }
+
+        let count = 0;
+        for (const dish of dishes) {
+            await Dish.create({
+                name: dish.name,
+                description: dish.description,
+                image_url: dish.image_url,
+                rarity: dish.rarity
+            }, userId);
+            count++;
+        }
+        return { message: 'Imported successfully', count };
     }
 }
 

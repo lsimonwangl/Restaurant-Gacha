@@ -12,5 +12,11 @@ export const dishesApi = {
     },
     delete(id) {
         return axios.delete(`/dishes/${id}`);
+    },
+    importFromGroup(groupId) {
+        return axios.post('/dishes/import', { groupId });
+    },
+    importOne(dishId) {
+        return axios.post(`/dishes/import/${dishId}`);
     }
 };

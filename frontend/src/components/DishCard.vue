@@ -7,6 +7,10 @@ defineProps({
   isExpanded: {
     type: Boolean,
     default: false
+  },
+  showTags: {
+    type: Boolean,
+    default: true
   }
 })
 
@@ -18,7 +22,9 @@ const handleExpand = (event) => {
 </script>
 
 <template>
-  <div class="dish-card" :class="[dish.rarity, { 'floating-active': isExpanded }]">
+  <div class="dish-card" 
+       :class="[dish.rarity, { 'floating-active': isExpanded }]"
+       @click="handleExpand">
     <div class="card-image-wrapper">
       <img v-if="dish.image_url" :src="dish.image_url" alt="Food" class="card-img">
       <div v-else class="card-img-placeholder">🍽️</div>
@@ -30,14 +36,13 @@ const handleExpand = (event) => {
       <p v-if="dish.description" 
          class="description-text" 
          :class="{ expanded: isExpanded }"
-         @click="handleExpand"
          title="點擊展開/收合">
          {{ dish.description }}
       </p>
       
       <div class="card-footer">
         <!-- Group Tags -->
-        <div class="card-groups" v-if="dish.group_info">
+        <div class="card-groups" v-if="showTags && dish.group_info">
            <span v-for="(gItem, idx) in dish.group_info.split('|||')" :key="idx" 
                  class="mini-group-tag clickable"
                  @click.stop="emit('remove-group', gItem)"
@@ -47,9 +52,11 @@ const handleExpand = (event) => {
            </span>
         </div>
         <div class="card-actions">
-           <button class="btn-small" @click.stop="emit('add-to-group', dish)">加入群組</button>
-           <button class="btn-small btn-edit" @click.stop="emit('edit', dish)">✏️</button>
-           <button class="btn-small btn-danger" @click.stop="emit('delete', dish)">🗑️</button>
+           <slot name="actions">
+               <button class="btn-small" @click.stop="emit('add-to-group', dish)">加入群組</button>
+               <button class="btn-small btn-edit" @click.stop="emit('edit', dish)">✏️</button>
+               <button class="btn-small btn-danger" @click.stop="emit('delete', dish)">🗑️</button>
+           </slot>
         </div>
       </div>
     </div>
@@ -68,6 +75,7 @@ const handleExpand = (event) => {
   position: relative;
   height: 100%; /* Fill wrapper */
   width: 100%;
+  cursor: pointer;
 }
 
 .dish-card.floating-active {

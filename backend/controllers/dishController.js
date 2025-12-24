@@ -53,5 +53,28 @@ const deleteDish = async (req, res) => {
     }
 };
 
-module.exports = { getDishes, getDishById, createDish, updateDish, deleteDish };
+const importDishes = async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        if (!groupId) {
+            return res.status(400).json({ message: 'Group ID is required' });
+        }
+        const result = await DishService.importDishesFromGroup(req.user.id, groupId);
+        res.status(201).json(result);
+    } catch (error) {
+        handleServiceError(res, error);
+    }
+};
+
+const importOneDish = async (req, res) => {
+    try {
+        const { dishId } = req.params;
+        const dish = await DishService.importDish(req.user.id, dishId);
+        res.status(201).json(dish);
+    } catch (error) {
+        handleServiceError(res, error);
+    }
+};
+
+module.exports = { getDishes, getDishById, createDish, updateDish, deleteDish, importDishes, importOneDish };
 
