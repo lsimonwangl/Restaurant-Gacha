@@ -144,7 +144,7 @@ onMounted(() => {
             
             <p class="group-desc">{{ group.description || '沒有描述' }}</p>
             
-            <div class="preview-images" v-if="group.preview_images">
+            <div class="preview-images" v-if="group.preview_images" :style="{ 'grid-template-columns': `repeat(${Math.min(group.preview_images.split(',').length, 3)}, 1fr)` }">
                 <div v-for="(img, index) in group.preview_images.split(',').slice(0, 3)" :key="index" class="preview-img-wrapper">
                      <img :src="img" class="preview-img" loading="lazy">
                 </div>
@@ -220,12 +220,21 @@ onMounted(() => {
     background: rgba(255,255,255,0.05);
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: 12px;
-    padding: 1.5rem;
+    padding: 1.25rem; /* Slightly reduced padding */
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.5rem; /* Reduced from 1rem */
     transition: transform 0.2s;
     position: relative;
+}
+
+/* ... existing styles ... */
+
+.preview-images {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px; /* Reverted to 8px */
+    margin-bottom: 0.5rem; /* Reduced bottom margin */
 }
 
 .group-card.my-group {
@@ -296,13 +305,13 @@ onMounted(() => {
 }
 
 .preview-images {
-    display: flex;
+    display: grid;
+    /* grid-template-columns set inline dynamically */
     gap: 8px;
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
 }
 
 .preview-img-wrapper {
-    flex: 1;
     aspect-ratio: 4 / 3;
     border-radius: 6px;
     overflow: hidden;
