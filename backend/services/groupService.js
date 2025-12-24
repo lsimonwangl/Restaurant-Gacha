@@ -8,6 +8,8 @@ class GroupService {
             return await Group.findOwned(userId);
         } else if (type === 'saved') {
             return await Group.findSaved(userId);
+        } else if (type === 'shared') {
+            return await Group.findShared(userId);
         }
         return await Group.findAll(userId);
     }

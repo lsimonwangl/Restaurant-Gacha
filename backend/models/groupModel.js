@@ -49,6 +49,25 @@ class Group {
         return rows;
     }
 
+    static async findShared(userId) {
+        const sql = `
+            SELECT g.*, 
+                   1 as is_owner,
+                   0 as is_saved,
+                   (
+                       SELECT GROUP_CONCAT(d.image_url SEPARATOR ',')
+                       FROM dish_groups dg
+                       JOIN dishes d ON dg.dish_id = d.id
+                       WHERE dg.group_id = g.id
+                   ) as preview_images
+            FROM \`groups\` g
+            WHERE g.user_id = ? AND g.is_public = TRUE
+            ORDER BY g.created_at DESC
+        `;
+        const [rows] = await db.query(sql, [userId]);
+        return rows;
+    }
+
     static async getExplore(userId) {
         const sql = `
             SELECT g.*, u.name as owner_name, u.avatar_url as owner_avatar,
@@ -64,10 +83,10 @@ class Group {
             FROM \`groups\` g
             JOIN \`users\` u ON g.user_id = u.id
             LEFT JOIN \`saved_groups\` sg ON g.id = sg.group_id AND sg.user_id = ?
-            WHERE g.is_public = TRUE
+            WHERE g.is_public = TRUE AND g.user_id != ?
             ORDER BY g.created_at DESC
         `;
-        const [rows] = await db.query(sql, [userId, userId]);
+        const [rows] = await db.query(sql, [userId, userId, userId]);
         return rows;
     }
 

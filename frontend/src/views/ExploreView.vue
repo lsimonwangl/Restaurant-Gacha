@@ -13,8 +13,9 @@ const selectedGroup = ref(null)
 const groupDishes = ref([])
 const loadingDishes = ref(false)
 
-const activeTab = ref('explore') // 'explore' or 'saved'
+const activeTab = ref('explore') // 'explore' | 'saved' | 'shared'
 const savedGroups = ref([])
+const sharedGroups = ref([])
 
 const fetchExplore = async () => {
     loading.value = true
@@ -42,12 +43,27 @@ const fetchSaved = async () => {
     }
 }
 
+const fetchShared = async () => {
+    loading.value = true
+    try {
+        const res = await groupsApi.getAll({ type: 'shared' })
+        sharedGroups.value = res.data
+    } catch (e) {
+        console.error(e)
+        alert('無法取得分享列表')
+    } finally {
+        loading.value = false
+    }
+}
+
 const switchTab = (tab) => {
     activeTab.value = tab
     if (tab === 'explore') {
         fetchExplore()
-    } else {
+    } else if (tab === 'saved') {
         fetchSaved()
+    } else if (tab === 'shared') {
+        fetchShared()
     }
 }
 
@@ -164,16 +180,27 @@ onMounted(() => {
         >
             ❤️ 我的收藏
         </button>
+        <button 
+            class="tab-btn" 
+            :class="{ active: activeTab === 'shared' }"
+            @click="switchTab('shared')"
+        >
+            📤 我分享的群組
+        </button>
       </div>
 
       <div v-if="loading" style="text-align: center;">載入中...</div>
       
-      <div v-else-if="(activeTab === 'explore' ? publicGroups : savedGroups).length === 0" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-        {{ activeTab === 'explore' ? '目前沒有其他公開群組。' : '你還沒有收藏任何群組。' }}
+      <div v-else-if="(activeTab === 'explore' ? publicGroups : (activeTab === 'saved' ? savedGroups : sharedGroups)).length === 0" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+        {{ 
+            activeTab === 'explore' ? '目前沒有其他公開群組。' : 
+            activeTab === 'saved' ? '你還沒有收藏任何群組。' : 
+            '你還沒有分享任何公開群組。'
+        }}
       </div>
 
       <div v-else class="group-grid">
-        <div v-for="group in (activeTab === 'explore' ? publicGroups : savedGroups)" 
+        <div v-for="group in (activeTab === 'explore' ? publicGroups : (activeTab === 'saved' ? savedGroups : sharedGroups))" 
              :key="group.id" 
              class="group-card" 
              :class="{ 'my-group': group.is_owner }"
