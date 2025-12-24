@@ -19,6 +19,31 @@ class User {
         );
         return result.insertId;
     }
+
+    static async findByIdWithPassword(id) {
+        const [rows] = await db.query('SELECT * FROM `users` WHERE id = ?', [id]);
+        return rows[0];
+    }
+
+    static async update(id, updates) {
+        const { name, avatar_url, password } = updates;
+        let fields = [];
+        let values = [];
+
+        if (name !== undefined) { fields.push('name = ?'); values.push(name); }
+        if (avatar_url !== undefined) { fields.push('avatar_url = ?'); values.push(avatar_url); }
+        if (password !== undefined) { fields.push('password = ?'); values.push(password); }
+
+        if (fields.length === 0) return;
+
+        values.push(id);
+        const sql = `UPDATE \`users\` SET ${fields.join(', ')} WHERE id = ?`;
+        await db.execute(sql, values);
+    }
+
+    static async delete(id) {
+        await db.execute('DELETE FROM `users` WHERE id = ?', [id]);
+    }
 }
 
 module.exports = User;

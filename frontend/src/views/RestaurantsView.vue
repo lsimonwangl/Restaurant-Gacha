@@ -269,12 +269,17 @@ fetchGroups()
 </script>
 
 <template>
-  <div class="list-container">
-    <div class="glass-panel" style="padding: 2rem; width: 100%; max-width: 1200px; overflow: visible;">
-      <!-- Backdrop for closing expanded card (Moved inside to respect stacking context) -->
-      <transition name="fade">
-        <div v-if="expandedDishId" class="click-outside-overlay" @click="closeExpand"></div>
-      </transition>
+<div class="list-container">
+    <div class="panel-wrapper" style="width: 100%; max-width: 1200px; position: relative;">
+      <!-- Visual Glass Layer -->
+      <div class="glass-panel-bg"></div>
+
+      <!-- Content Layer -->
+      <div class="panel-content" style="padding: 2rem; position: relative;">
+          <!-- Backdrop for closing expanded card -->
+          <transition name="fade">
+            <div v-if="expandedDishId" class="click-outside-overlay" @click="closeExpand"></div>
+          </transition>
 
       <h2>我的餐廳</h2>
       
@@ -447,11 +452,38 @@ fetchGroups()
     </div>
 
   </div>
+  </div>
 </template>
 
 
 
 <style scoped>
+.glass-panel-bg {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--card-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    z-index: 0;
+}
+
+.panel-content {
+    z-index: 1; /* Sit above background */
+}
+
+/* Ensure fixed overlay works */
+.click-outside-overlay {
+    position: fixed !important; /* Force Viewport */
+    inset: 0;
+    z-index: 9998; /* High Z */
+    background: rgba(0,0,0,0.7); 
+    backdrop-filter: blur(5px);
+    cursor: default;
+}
+
 .list-container {
   display: flex;
   justify-content: center;

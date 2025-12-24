@@ -1,8 +1,7 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { groupsApi } from '../api/groups'
-import { dishesApi } from '../api/dishes'
-import DishCard from '../components/DishCard.vue'
+import GroupDetailModal from '../components/GroupDetailModal.vue'
 
 const publicGroups = ref([])
 const loading = ref(true)
@@ -10,8 +9,6 @@ const loading = ref(true)
 // View Details Modal
 const showDetails = ref(false)
 const selectedGroup = ref(null)
-const groupDishes = ref([])
-const loadingDishes = ref(false)
 
 const activeTab = ref('explore') // 'explore' | 'saved' | 'shared'
 const savedGroups = ref([])
@@ -67,6 +64,26 @@ const switchTab = (tab) => {
     }
 }
 
+// Optimization: Computed property for current list
+const currentGroups = computed(() => {
+    switch (activeTab.value) {
+        case 'saved': return savedGroups.value;
+        case 'shared': return sharedGroups.value;
+        case 'explore':
+        default:
+            return publicGroups.value;
+    }
+})
+
+const emptyMessage = computed(() => {
+    switch (activeTab.value) {
+        case 'explore': return '目前沒有其他公開群組。';
+        case 'saved': return '你還沒有收藏任何群組。';
+        case 'shared': return '你還沒有分享任何公開群組。';
+        default: return '';
+    }
+})
+
 const toggleSave = async (group) => {
     try {
         if (group.is_saved_by_me || (activeTab.value === 'saved')) {
@@ -93,66 +110,10 @@ const toggleSave = async (group) => {
     }
 }
 
-const openDetails = async (group) => {
+const openDetails = (group) => {
     selectedGroup.value = group
     showDetails.value = true
-    groupDishes.value = []
-    loadingDishes.value = true
-    try {
-        const res = await groupsApi.getDishes(group.id)
-        groupDishes.value = res.data
-    } catch (e) {
-        alert('無法載入餐廳列表')
-    } finally {
-        loadingDishes.value = false
-    }
 }
-
-const importAll = async () => {
-    if (!selectedGroup.value) return;
-    if (!confirm(`確定要將「${selectedGroup.value.name}」的所有餐廳匯入到你的清單嗎？`)) return;
-    
-    try {
-        const res = await dishesApi.importFromGroup(selectedGroup.value.id);
-        alert(`成功匯入 ${res.data.count} 間餐廳！`);
-    } catch (e) {
-        alert('匯入失敗: ' + (e.response?.data?.message || e.message));
-    }
-}
-
-const importOne = async (dish) => {
-    if (!confirm(`確定要匯入「${dish.name}」嗎？`)) return;
-    try {
-        await dishesApi.importOne(dish.id);
-        alert(`成功匯入「${dish.name}」！`);
-    } catch (e) {
-        alert('匯入失敗: ' + (e.response?.data?.message || e.message));
-    }
-}
-
-// Expansion Logic (Copied from RestaurantsView for consistency)
-const expandedDishId = ref(null)
-const wrapperHeights = ref({})
-
-const toggleExpand = (id, event) => {
-    if (expandedDishId.value === id) {
-        expandedDishId.value = null
-        return
-    }
-    const card = event.target.closest('.dish-card')
-    const wrapper = card?.parentElement
-    if (wrapper) {
-        wrapperHeights.value[id] = wrapper.offsetHeight
-    }
-    expandedDishId.value = id
-}
-
-const closeExpand = () => {
-    expandedDishId.value = null
-    wrapperHeights.value = {}
-}
-
-
 
 onMounted(() => {
     fetchExplore()
@@ -191,16 +152,12 @@ onMounted(() => {
 
       <div v-if="loading" style="text-align: center;">載入中...</div>
       
-      <div v-else-if="(activeTab === 'explore' ? publicGroups : (activeTab === 'saved' ? savedGroups : sharedGroups)).length === 0" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-        {{ 
-            activeTab === 'explore' ? '目前沒有其他公開群組。' : 
-            activeTab === 'saved' ? '你還沒有收藏任何群組。' : 
-            '你還沒有分享任何公開群組。'
-        }}
+      <div v-else-if="currentGroups.length === 0" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+        {{ emptyMessage }}
       </div>
 
       <div v-else class="group-grid">
-        <div v-for="group in (activeTab === 'explore' ? publicGroups : (activeTab === 'saved' ? savedGroups : sharedGroups))" 
+        <div v-for="group in currentGroups" 
              :key="group.id" 
              class="group-card" 
              :class="{ 'my-group': group.is_owner }"
@@ -245,58 +202,11 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Review Modal -->
-    <Teleport to="body" v-if="showDetails">
-        <div class="modal-overlay" @click.self="showDetails = false">
-        <div class="glass-panel modal list-modal">
-            <!-- Backdrop for closing expanded card -->
-            <transition name="fade">
-            <div v-if="expandedDishId" class="click-outside-overlay" @click.stop="closeExpand"></div>
-            </transition>
-
-            <div class="modal-header-row">
-                <h3>{{ selectedGroup?.name }} <span class="text-muted" style="font-size: 0.9em;">- 餐廳列表</span></h3>
-                
-                <div v-if="selectedGroup?.is_owner" class="badge-owner">我分享的</div>
-                <div v-else class="owner-info">
-                    <img v-if="selectedGroup?.owner_avatar" :src="selectedGroup.owner_avatar" class="owner-avatar">
-                    <span v-else class="owner-avatar-placeholder">👤</span>
-                    <span class="group-owner">by {{ selectedGroup?.owner_name || '使用者' }}</span>
-                </div>
-            </div>
-            
-            <div v-if="loadingDishes" style="text-align: center; padding: 2rem;">載入中...</div>
-            <div v-else-if="groupDishes.length === 0" style="text-align: center; padding: 2rem; color: var(--text-muted);">
-                此群組還沒有任何餐廳。
-            </div>
-            <div v-else class="dish-grid-modal">
-                <div v-for="dish in groupDishes" 
-                    :key="dish.id" 
-                    class="card-wrapper"
-                    :style="{ height: expandedDishId === dish.id ? wrapperHeights[dish.id] + 'px' : 'auto' }">
-                    
-                    <DishCard 
-                        :dish="dish"
-                        :is-expanded="expandedDishId === dish.id"
-                        :show-tags="false"
-                        @toggle-expand="(e) => toggleExpand(dish.id, e)"
-                    >
-                        <template #actions>
-                            <button v-if="!selectedGroup.is_owner" class="btn-small full-width" @click.stop="importOne(dish)">
-                                📥 匯入
-                            </button>
-                        </template>
-                    </DishCard>
-                </div>
-            </div>
-
-            <div class="modal-actions">
-            <button v-if="!selectedGroup.is_owner" class="btn-primary" @click="importAll">📥 匯入所有餐廳</button>
-            <button class="btn-secondary" @click="showDetails = false">關閉</button>
-            </div>
-        </div>
-        </div>
-    </Teleport>
+    <!-- Separated Modal Component -->
+    <GroupDetailModal 
+        v-model="showDetails" 
+        :group="selectedGroup" 
+    />
 
   </div>
 </template>
@@ -473,114 +383,6 @@ onMounted(() => {
     background: rgba(239, 68, 68, 0.1);
 }
 
-/* List Modal - Ensure specificity overrides .modal */
-.modal.list-modal {
-    width: 95%;              
-    max-width: 1200px;       /* Match RestaurantsView */
-    max-height: 85vh;
-    overflow-y: auto;
-}
-
-.dish-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;               
-    margin-top: 1rem;
-}
-
-.dish-row {
-    display: flex;
-    align-items: flex-start; /* Align top for description */
-    gap: 1.5rem;             /* Increased gap */
-    padding: 1rem;           /* Increased padding */
-    background: rgba(255,255,255,0.05);
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    transition: background 0.2s;
-}
-
-.dish-row:hover {
-    background: rgba(255,255,255,0.08);
-}
-
-.dish-thumb {
-    width: 100px;            /* Increased from 50px */
-    height: 100px;           /* Increased from 50px */
-    border-radius: 8px;
-    object-fit: cover;
-    flex-shrink: 0;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-}
-
-.dish-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    flex: 1;
-    min-width: 0;           /* Prevent text overflow issues */
-}
-
-.dish-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.dish-name {
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: var(--text-main);
-}
-
-.dish-desc {
-    font-size: 0.95rem;
-    color: var(--text-muted);
-    line-height: 1.5;
-    margin: 0;
-}
-
-.rarity-tag {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    font-weight: bold;
-    padding: 4px 8px;
-    border-radius: 4px;
-    background: rgba(255,255,255,0.1);
-}
-.rarity-tag.common { color: #cbd5e1; background: rgba(148, 163, 184, 0.2); }
-.rarity-tag.rare { color: #60a5fa; background: rgba(37, 99, 235, 0.2); }
-.rarity-tag.epic { color: #e879f9; background: rgba(192, 38, 211, 0.2); }
-
-/* Modals */
-.modal-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.8);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  animation: fadeIn 0.2s ease-out;
-}
-
-.modal {
-  padding: 2.5rem;
-  width: 90%;
-  max-width: 500px;
-  display: flex;
-  flex-direction: column;
-  gap: 1.2rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  position: relative;
-  background: var(--card-bg, #1e293b); /* Fallback */
-  border: 1px solid rgba(255,255,255,0.1);
-  animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
 /* Tabs */
 .tabs {
     display: flex;
@@ -608,83 +410,5 @@ onMounted(() => {
 .tab-btn.active {
     color: var(--primary-color);
     border-bottom-color: var(--primary-color);
-}
-
-.modal-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-  margin-top: 1.5rem;
-}
-
-.dish-grid-modal {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); /* Match RestaurantsView 240px */
-    gap: 1.5rem;
-    margin-top: 1rem;
-    padding-right: 0.5rem;
-    align-items: stretch; 
-}
-
-/* Logic for card wrapper expansion placeholder */
-.card-wrapper {
-  position: relative;
-  /* width and height are managed by grid */
-}
-
-/* Re-use buttons but scoped */
-.btn-small {
-  padding: 0.4rem 0.8rem;
-  font-size: 0.85rem;
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.2);
-  color: var(--text-muted);
-  cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.btn-small:hover {
-  background: rgba(255,255,255,0.1);
-  color: var(--text-main);
-  border-color: rgba(255,255,255,0.4);
-}
-.click-outside-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 50;
-    background: rgba(0,0,0,0.4); 
-    backdrop-filter: blur(2px);
-    border-radius: 12px;
-    cursor: default;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-.modal-header-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    padding-bottom: 1rem;
-    margin-bottom: 1rem;
-}
-
-.modal-header-row h3 {
-    margin: 0;
-    color: var(--primary-color);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
 }
 </style>

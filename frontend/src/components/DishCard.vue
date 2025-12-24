@@ -84,7 +84,7 @@ const handleExpand = (event) => {
   width: 100%;
   height: auto;
   min-height: 100%;
-  z-index: 100;
+  z-index: 9999; /* Ensure above fixed overlay (9998) */
   transform: scale(1.05); /* Slightly larger */
   animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* Spring bounce */
 }
@@ -173,6 +173,7 @@ const handleExpand = (event) => {
     margin-bottom: 0.5rem;
     display: -webkit-box;
     -webkit-line-clamp: 2; /* Reduce to 2 lines */
+    line-clamp: 2; /* Standard property */
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -182,6 +183,7 @@ const handleExpand = (event) => {
 
 .card-body p.description-text.expanded {
     -webkit-line-clamp: unset; /* Remove limit */
+    line-clamp: unset;
     color: var(--text-main); /* Highlight text slightly when expanded */
 }
 
