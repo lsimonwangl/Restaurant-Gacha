@@ -144,7 +144,7 @@ onMounted(() => {
             
             <p class="group-desc">{{ group.description || '沒有描述' }}</p>
             
-            <div class="preview-images" v-if="group.preview_images" :style="{ 'grid-template-columns': `repeat(${Math.min(group.preview_images.split(',').length, 3)}, 1fr)` }">
+            <div class="preview-images" v-if="group.preview_images">
                 <div v-for="(img, index) in group.preview_images.split(',').slice(0, 3)" :key="index" class="preview-img-wrapper">
                      <img :src="img" class="preview-img" loading="lazy">
                 </div>
@@ -214,18 +214,20 @@ onMounted(() => {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 1.5rem;
+    align-items: stretch; /* Explicitly ensure stretch */
 }
 
 .group-card {
     background: rgba(255,255,255,0.05);
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: 12px;
-    padding: 1.25rem; /* Slightly reduced padding */
+    padding: 1.25rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem; /* Reduced from 1rem */
+    gap: 0.5rem;
     transition: transform 0.2s;
     position: relative;
+    height: 100%; /* Force fill grid cell height */
 }
 
 /* ... existing styles ... */
@@ -306,13 +308,15 @@ onMounted(() => {
 
 .preview-images {
     display: grid;
-    /* grid-template-columns set inline dynamically */
-    gap: 8px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
     margin-bottom: 0.5rem;
+    width: 100%;
 }
 
 .preview-img-wrapper {
     aspect-ratio: 4 / 3;
+    width: 100%;
     border-radius: 6px;
     overflow: hidden;
     position: relative;
