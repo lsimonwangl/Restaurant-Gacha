@@ -21,19 +21,19 @@ class Dish {
     }
 
     static async create(dish, userId) {
-        const { name, description, image_url, rarity } = dish;
+        const { name, description, image_url, rarity, address, lat, lng } = dish;
         const [result] = await db.query(
-            'INSERT INTO `dishes` (name, description, image_url, rarity, user_id) VALUES (?, ?, ?, ?, ?)',
-            [name, description, image_url, rarity, userId]
+            'INSERT INTO `dishes` (name, description, image_url, address, lat, lng, rarity, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [name, description, image_url, address || null, lat || null, lng || null, rarity, userId]
         );
         return result.insertId;
     }
 
     static async update(id, dish) {
-        const { name, description, image_url, rarity } = dish;
+        const { name, description, image_url, rarity, address, lat, lng } = dish;
         await db.query(
-            'UPDATE `dishes` SET name = ?, description = ?, image_url = ?, rarity = ? WHERE id = ?',
-            [name, description, image_url, rarity, id]
+            'UPDATE `dishes` SET name = ?, description = ?, image_url = ?, address = ?, lat = ?, lng = ?, rarity = ? WHERE id = ?',
+            [name, description, image_url, address || null, lat || null, lng || null, rarity, id]
         );
     }
 
