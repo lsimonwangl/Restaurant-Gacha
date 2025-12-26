@@ -697,6 +697,8 @@ fetchGroups()
   flex-direction: column;
   gap: 1.2rem;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  max-height: 90vh; /* Limit height to 90% of viewport */
+  overflow-y: auto; /* Enable vertical scrolling */
 }
 
 .modal-actions {
