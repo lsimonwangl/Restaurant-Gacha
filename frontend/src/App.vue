@@ -24,8 +24,8 @@ const version = __APP_VERSION__
   <header class="navbar glass-panel">
     <div class="logo">
       <RouterLink to="/" class="logo-link">
-        <span style="font-size: 1.8rem; margin-right: 0.5rem;">🎰</span>
-        隨食抽
+        <img src="/logo.png" alt="隨食抽 Logo" class="logo-image" />
+        <span class="logo-text">隨食抽</span>
       </RouterLink>
     </div>
     <nav>
@@ -69,20 +69,33 @@ const version = __APP_VERSION__
 }
 
 .logo-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  transition: transform 0.2s;
+}
+
+.logo-link:hover {
+  transform: scale(1.05);
+}
+.logo-image {
+  height: 60px; /* Increased size */
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); /* Add shadow for depth */
+}
+
+.logo-text {
   font-size: 1.5rem;
   font-weight: 800;
   color: var(--text-main);
-  letter-spacing: -0.5px;
-  display: flex;
-  align-items: center;
+  margin-left: 0.8rem;
+  letter-spacing: 1px;
+  /* Optional: Add gradient if desired, matching original style */
   background: linear-gradient(to right, #fff, #94a3b8);
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent; 
-  /* Fallback for icon */
-  text-decoration: none;
-}
-.logo-link span {
-  -webkit-text-fill-color: initial;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 nav {
