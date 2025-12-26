@@ -77,8 +77,8 @@ const loadGoogleMaps = () => {
             console.log('✅ Google Maps already loaded')
             return resolve(window.google)
         }
-        // API key 硬編碼（開發階段）。部署時改為 import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-        const key = 'AIzaSyCR_kguf_pwjZ75R5FTUWRglvirN9w05x0'
+        // API key 從環境變數讀取
+        const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
         if (!key) {
             console.error('❌ Google Maps API key not set')
             return reject(new Error('Google Maps API key not set'))

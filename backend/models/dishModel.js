@@ -21,11 +21,14 @@ class Dish {
     }
 
     static async create(dish, userId) {
-        const { name, description, image_url, rarity, address, lat, lng } = dish;
+        console.log('Dish.create called with dish:', dish, 'userId:', userId);
+        const { name, description, image_url, address, lat, lng, rarity } = dish;
+        console.log('Extracted values:', { name, description, image_url, address, lat, lng, rarity, userId });
         const [result] = await db.query(
             'INSERT INTO `dishes` (name, description, image_url, address, lat, lng, rarity, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
             [name, description, image_url, address || null, lat || null, lng || null, rarity, userId]
         );
+        console.log('Insert result:', result);
         return result.insertId;
     }
 

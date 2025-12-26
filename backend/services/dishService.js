@@ -16,17 +16,20 @@ class DishService {
     }
 
     static async createDish(userId, dishData, file) {
+        console.log('DishService.createDish called with userId:', userId, 'dishData:', dishData, 'file:', file ? 'yes' : 'no');
         let image_url = dishData.image_url || '';
 
         if (file) {
             image_url = await uploadToS3(file, 'dishes');
         }
 
+        console.log('Inserting dish with image_url:', image_url);
         const newDishId = await Dish.create({
             ...dishData,
             image_url
         }, userId);
 
+        console.log('Dish created with id:', newDishId);
         return await Dish.findById(newDishId);
     }
 
