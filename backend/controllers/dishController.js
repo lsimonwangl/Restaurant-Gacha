@@ -26,9 +26,13 @@ const getDishById = async (req, res) => {
 
 const createDish = async (req, res) => {
     try {
+        console.log('Creating dish for user:', req.user.id);
+        console.log('Dish data:', req.body);
+        console.log('File:', req.file ? 'present' : 'not present');
         const newDish = await DishService.createDish(req.user.id, req.body, req.file);
         res.status(201).json(newDish);
     } catch (error) {
+        console.error('Error creating dish:', error);
         // Handle specific error types if needed, otherwise generic
         // Assuming DishService throws errors with statusCode if known
         handleServiceError(res, error);

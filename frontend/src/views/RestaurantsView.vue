@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import { groupsApi } from '../api/groups'
 import { dishesApi } from '../api/dishes'
 import DishCard from '../components/DishCard.vue'
@@ -12,7 +12,7 @@ const loading = ref(true)
 const showCreateDish = ref(false)
 const showCreateGroup = ref(false)
 const showAddToGroup = ref(false)
-const newDish = ref({ name: '', description: '', rarity: 'common' })
+const newDish = ref({ name: '', description: '', rarity: 'common', address: '', lat: null, lng: null })
 const newGroup = ref({ name: '', description: '', is_public: false })
 const showManageGroups = ref(false)
 const selectedDish = ref(null)
@@ -64,6 +64,114 @@ const filterByGroup = async (group) => {
 const selectedFile = ref(null)
 const uploading = ref(false)
 
+// Google Maps Places Search refs
+const searchQuery = ref('')
+const searchResults = ref([])
+const searching = ref(false)
+let placesService = null
+let map = null
+
+const loadGoogleMaps = () => {
+    return new Promise((resolve, reject) => {
+        if (window.google && window.google.maps && window.google.maps.places) {
+            console.log('✅ Google Maps already loaded')
+            return resolve(window.google)
+        }
+        // API key 從環境變數讀取
+        const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+        if (!key) {
+            console.error('❌ Google Maps API key not set')
+            return reject(new Error('Google Maps API key not set'))
+        }
+        console.log('📡 Loading Google Maps API...')
+        const script = document.createElement('script')
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&v=weekly`
+        script.async = true
+        script.defer = true
+        script.onload = () => {
+            console.log('✅ Google Maps API loaded successfully')
+            resolve(window.google)
+        }
+        script.onerror = (error) => {
+            console.error('❌ Google Maps API failed to load:', error)
+            reject(error)
+        }
+        document.head.appendChild(script)
+    })
+}
+
+const initPlacesService = async () => {
+    try {
+        await loadGoogleMaps()
+        if (!map) {
+            // Create a hidden map element for Places service
+            const hiddenMapDiv = document.createElement('div')
+            hiddenMapDiv.style.display = 'none'
+            document.body.appendChild(hiddenMapDiv)
+            map = new window.google.maps.Map(hiddenMapDiv, { center: { lat: 0, lng: 0 }, zoom: 1 })
+        }
+        placesService = new window.google.maps.places.PlacesService(map)
+        console.log('✅ PlacesService initialized')
+    } catch (e) {
+        console.error('❌ Failed to init PlacesService:', e)
+    }
+}
+
+const searchRestaurants = async () => {
+    if (!searchQuery.value) return
+    searching.value = true
+    try {
+        await initPlacesService()
+        const request = {
+            query: searchQuery.value,
+            type: 'restaurant'
+        }
+        placesService.textSearch(request, (results, status) => {
+            if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+                console.log('✅ Found ' + results.length + ' results')
+                searchResults.value = results
+            } else {
+                console.warn('⚠️ Search status:', status)
+                searchResults.value = []
+            }
+        })
+    } catch (e) {
+        console.error('❌ Search failed:', e)
+    } finally {
+        searching.value = false
+    }
+}
+
+const selectPlace = async (place) => {
+    try {
+        console.log('📍 Selecting place:', place)
+        newDish.value.name = place.name || ''
+        newDish.value.address = place.formatted_address || place.name || ''
+        if (place.geometry && place.geometry.location) {
+            newDish.value.lat = place.geometry.location.lat()
+            newDish.value.lng = place.geometry.location.lng()
+        }
+        
+        // Clear search results after selection
+        searchResults.value = []
+        searchQuery.value = ''
+        console.log('✅ Place info filled successfully')
+        
+    } catch (e) {
+        console.error('❌ Error selecting place:', e)
+    }
+}
+
+// Initialize PlacesService when create modal opens
+watch(showCreateDish, async (val) => {
+    if (val) {
+        await nextTick()
+        initPlacesService()
+        searchQuery.value = ''
+        searchResults.value = []
+    }
+})
+
 // ... existing refs ...
 
 const handleFileUpload = (event) => {
@@ -73,12 +181,32 @@ const handleFileUpload = (event) => {
 const createDish = async () => {
     if (!newDish.value.name) return alert('請輸入名稱')
     
+    // 檢查是否已有相同名稱或地址的餐廳
+    const duplicate = dishes.value.find(d => 
+        d.name === newDish.value.name || 
+        (newDish.value.address && d.address === newDish.value.address)
+    )
+    
+    if (duplicate) {
+        alert(`⚠️ 已經有此餐廳了\n名稱: ${duplicate.name}\n地址: ${duplicate.address || '未設定'}`)
+        // 清除表單
+        newDish.value = { name: '', description: '', rarity: 'common', address: '', lat: null, lng: null }
+        selectedFile.value = null
+        searchQuery.value = ''
+        searchResults.value = []
+        return
+    }
+    
     uploading.value = true
     try {
         const formData = new FormData()
         formData.append('name', newDish.value.name)
         formData.append('description', newDish.value.description)
         formData.append('rarity', newDish.value.rarity)
+        // Include optional address and geo
+        if (newDish.value.address) formData.append('address', newDish.value.address)
+        if (newDish.value.lat) formData.append('lat', newDish.value.lat)
+        if (newDish.value.lng) formData.append('lng', newDish.value.lng)
         if (selectedFile.value) {
             formData.append('image', selectedFile.value)
         }
@@ -88,7 +216,7 @@ const createDish = async () => {
         })
         
         showCreateDish.value = false
-        newDish.value = { name: '', description: '', rarity: 'common' }
+        newDish.value = { name: '', description: '', rarity: 'common', address: '', lat: null, lng: null }
         selectedFile.value = null
         fetchDishes()
     } catch (e) {
@@ -329,13 +457,37 @@ fetchGroups()
     <div v-if="showCreateDish" class="modal-overlay">
       <div class="glass-panel modal">
         <h3>新增餐廳</h3>
+        
+        <!-- Google Places Search -->
+        <div class="search-section">
+          <label>🔍 搜尋餐廳</label>
+          <div style="display: flex; gap: 0.5rem;">
+            <input v-model="searchQuery" placeholder="輸入餐廳名稱" class="input-field" style="flex: 1;">
+            <button class="btn-primary" @click="searchRestaurants" :disabled="searching">
+              {{ searching ? '搜尋中...' : '搜尋' }}
+            </button>
+          </div>
+          
+          <!-- Search Results List -->
+          <div v-if="searchResults.length > 0" class="search-results">
+            <div v-for="(result, idx) in searchResults" :key="idx" class="search-result-item" @click="selectPlace(result)">
+              <div style="font-weight: bold;">{{ result.name }}</div>
+              <div style="font-size: 0.85rem; color: var(--text-muted);">{{ result.formatted_address }}</div>
+            </div>
+          </div>
+        </div>
+        
+        <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 1rem 0;">
+        
         <input v-model="newDish.name" placeholder="餐廳名稱" class="input-field">
         <input v-model="newDish.description" placeholder="描述" class="input-field">
-        
+        <input v-model="newDish.address" placeholder="地址（搜尋後會自動填入，可手動修改）" class="input-field">
+
         <!-- File Upload -->
         <div class="file-upload-group">
-            <label>餐廳圖片:</label>
+            <label>餐廳圖片{{ selectedFile ? '（已選）' : '' }}:</label>
             <input type="file" @change="handleFileUpload" accept="image/*" class="input-field file-input">
+            <small v-if="selectedFile" style="color: var(--primary-color);">✅ {{ selectedFile.name }}</small>
         </div>
 
         <select v-model="newDish.rarity" class="input-field">
@@ -389,6 +541,7 @@ fetchGroups()
         <h3>編輯餐廳</h3>
         <input v-model="editDishData.name" placeholder="餐廳名稱" class="input-field">
         <input v-model="editDishData.description" placeholder="描述" class="input-field">
+        <input v-model="editDishData.address" placeholder="地址" class="input-field">
         
         <!-- File Upload -->
         <div class="file-upload-group">
@@ -544,6 +697,8 @@ fetchGroups()
   flex-direction: column;
   gap: 1.2rem;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  max-height: 90vh; /* Limit height to 90% of viewport */
+  overflow-y: auto; /* Enable vertical scrolling */
 }
 
 .modal-actions {
@@ -665,5 +820,42 @@ fetchGroups()
     background: var(--primary-glow);
     border-color: var(--primary-color);
     color: white;
+}
+
+/* Google Places Search Results */
+.search-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.search-section label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.search-results {
+    margin-top: 0.8rem;
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.search-result-item {
+    padding: 0.8rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover {
+    background: rgba(255, 255, 255, 0.1);
 }
 </style>
