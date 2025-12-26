@@ -33,6 +33,8 @@ const handleExpand = (event) => {
     
     <div class="card-body">
       <h3>{{ dish.name }}</h3>
+      <p v-if="dish.address" class="address-text">{{ dish.address }}</p>
+      <p v-if="dish.distance !== null" class="distance-text">📍 {{ dish.distance }} km</p>
       <p v-if="dish.description" 
          class="description-text" 
          :class="{ expanded: isExpanded }"
@@ -164,6 +166,19 @@ const handleExpand = (event) => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.card-body p.address-text {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 0.2rem;
+}
+
+.card-body p.distance-text {
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 0.3rem;
 }
 
 .card-body p.description-text {

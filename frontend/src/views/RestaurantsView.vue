@@ -7,6 +7,61 @@ import DishCard from '../components/DishCard.vue'
 const dishes = ref([])
 const groups = ref([])
 const loading = ref(true)
+const userLocation = ref(null)
+
+// Get user location
+const getUserLocation = () => {
+    return new Promise((resolve, reject) => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    userLocation.value = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    }
+                    resolve(userLocation.value)
+                },
+                (error) => {
+                    console.warn('無法獲取用戶位置:', error)
+                    resolve(null)
+                }
+            )
+        } else {
+            console.warn('瀏覽器不支持地理位置')
+            resolve(null)
+        }
+    })
+}
+
+// Calculate distance between two points
+const calculateDistance = (lat1, lng1, lat2, lng2) => {
+    const R = 6371 // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLng = (lng2 - lng1) * Math.PI / 180
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    return R * c
+}
+
+// Add distance to dishes
+const addDistancesToDishes = (dishesArray) => {
+    if (!userLocation.value) return dishesArray
+    
+    return dishesArray.map(dish => {
+        if (dish.lat && dish.lng) {
+            const distance = calculateDistance(
+                userLocation.value.lat, 
+                userLocation.value.lng, 
+                dish.lat, 
+                dish.lng
+            )
+            return { ...dish, distance: Math.round(distance * 10) / 10 } // Round to 1 decimal
+        }
+        return { ...dish, distance: null }
+    })
+}
 
 // Modals
 const showCreateDish = ref(false)
@@ -23,7 +78,17 @@ const fetchDishes = async () => {
     loading.value = true
     try {
         const res = await dishesApi.getAll()
-        dishes.value = res.data
+        let dishesData = res.data
+        
+        // Get user location if not already have
+        if (!userLocation.value) {
+            await getUserLocation()
+        }
+        
+        // Add distances
+        dishesData = addDistancesToDishes(dishesData)
+        
+        dishes.value = dishesData
     } catch (e) {
         console.error(e)
     } finally {
@@ -52,7 +117,12 @@ const filterByGroup = async (group) => {
     loading.value = true
     try {
         const res = await groupsApi.getDishes(group.id)
-        dishes.value = res.data
+        let dishesData = res.data
+        
+        // Add distances
+        dishesData = addDistancesToDishes(dishesData)
+        
+        dishes.value = dishesData
     } catch(e) {
         alert('無法取得群組餐廳')
     } finally {
@@ -121,6 +191,11 @@ const searchRestaurants = async () => {
     if (!searchQuery.value) return
     searching.value = true
     try {
+        // Ensure user location is available
+        if (!userLocation.value) {
+            await getUserLocation()
+        }
+        
         await initPlacesService()
         const request = {
             query: searchQuery.value,
@@ -129,7 +204,20 @@ const searchRestaurants = async () => {
         placesService.textSearch(request, (results, status) => {
             if (status === window.google.maps.places.PlacesServiceStatus.OK) {
                 console.log('✅ Found ' + results.length + ' results')
-                searchResults.value = results
+                // Add distances to search results
+                let resultsWithDistance = results.map(result => {
+                    if (result.geometry && result.geometry.location && userLocation.value) {
+                        const distance = calculateDistance(
+                            userLocation.value.lat,
+                            userLocation.value.lng,
+                            result.geometry.location.lat(),
+                            result.geometry.location.lng()
+                        )
+                        return { ...result, distance: Math.round(distance * 10) / 10 }
+                    }
+                    return { ...result, distance: null }
+                })
+                searchResults.value = resultsWithDistance
             } else {
                 console.warn('⚠️ Search status:', status)
                 searchResults.value = []
@@ -473,6 +561,7 @@ fetchGroups()
             <div v-for="(result, idx) in searchResults" :key="idx" class="search-result-item" @click="selectPlace(result)">
               <div style="font-weight: bold;">{{ result.name }}</div>
               <div style="font-size: 0.85rem; color: var(--text-muted);">{{ result.formatted_address }}</div>
+              <div v-if="result.distance !== null" style="font-size: 0.8rem; color: var(--accent); font-weight: 500;">📍 {{ result.distance }} km</div>
             </div>
           </div>
         </div>
