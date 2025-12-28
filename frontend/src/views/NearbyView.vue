@@ -343,44 +343,55 @@ watch(maxPrice, () => {
     }
 })
 
+const getPreciseLocation = () => {
+    return new Promise((resolve, reject) => {
+        // First try: High Accuracy
+        navigator.geolocation.getCurrentPosition(
+            resolve,
+            (err) => {
+                console.warn("High Accuracy failed, trying low accuracy...", err)
+                // Second try: Low Accuracy (Fallback)
+                navigator.geolocation.getCurrentPosition(
+                    resolve,
+                    (err2) => reject(err2), // If even low accuracy fails, reject
+                    { 
+                        enableHighAccuracy: false, 
+                        timeout: 15000, 
+                        maximumAge: 30000 
+                    }
+                )
+            },
+            { 
+                enableHighAccuracy: true, 
+                timeout: 5000, // Short timeout for high accuracy first attempt
+                maximumAge: 0 
+            }
+        )
+    })
+}
+
 onMounted(async () => {
     loading.value = true
     try {
         if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
+            getPreciseLocation()
+                .then((position) => {
                     initMap(position.coords.latitude, position.coords.longitude)
                     loading.value = false
-                },
-                (err) => {
+                })
+                .catch((err) => {
                     console.error("Geolocation Error:", err)
                     let msg = "無法取得您的位置。"
-                    switch(err.code) {
-                        case err.PERMISSION_DENIED:
-                            msg = "您拒絕了定位權限，請至瀏覽器設定開啟。"
-                            break
-                        case err.POSITION_UNAVAILABLE:
-                            msg = "無法偵測到您的位置。"
-                            break
-                        case err.TIMEOUT:
-                            msg = "定位請求逾時，請稍後再試。"
-                            break
-                    }
+                    if (err.code === 1) msg = "您拒絕了定位權限，請至瀏覽器設定開啟。"
+                    else if (err.code === 2) msg = "無法偵測到您的位置。"
+                    else if (err.code === 3) msg = "定位請求逾時，系統已切換至預設地點。"
                     
-                    // Fallback: Taipei Main Station
-                    // Use .then() because initMap is async and calls triggerSearch which clears error.value being sync.
-                    // We want to ensure error.value is set AFTER triggerSearch clears it.
+                    // Fallback to Taipei Main Station
                     initMap(25.0478, 121.5170).then(() => {
                         error.value = msg
                     })
                     loading.value = false
-                },
-                { 
-                    enableHighAccuracy: false, // Prioritize speed and reliability over precision
-                    timeout: 15000, // 15 seconds timeout
-                    maximumAge: 30000 // Accept cached positions up to 30 seconds old
-                }
-            )
+                })
         } else {
             error.value = "您的瀏覽器不支援定位功能。"
             loading.value = false
@@ -448,6 +459,16 @@ onMounted(async () => {
         </div>
 
         <div ref="mapContainer" class="map-container"></div>
+        
+        <!-- Filter Feedback -->
+        <div v-if="nearbyRestaurants.length > 0 && markers.length === 0" class="no-match-overlay">
+            <div class="glass-panel" style="padding: 1rem 2rem; text-align: center;">
+                <p style="margin: 0; font-size: 1.1rem;">沒有符合評分條件的餐廳 😅</p>
+                <button @click="minRating = 0" style="margin-top: 0.5rem; background: var(--primary-color); border: none; padding: 0.5rem 1rem; border-radius: 8px; color: white; cursor: pointer;">
+                    顯示所有餐廳
+                </button>
+            </div>
+        </div>
         
         <!-- Reviews Modal Component -->
         <RestaurantReviewsModal 
