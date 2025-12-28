@@ -280,7 +280,7 @@ const triggerSearch = (location) => {
     loading.value = true 
     activeSearches.value = 0
 
-    const typesToSearch = ['restaurant', 'cafe', 'meal_takeaway', 'bakery']
+    const typesToSearch = ['restaurant', 'cafe', 'meal_takeaway', 'bakery', 'bar', 'food']
 
     typesToSearch.forEach(type => {
         performSearch(location, type)
