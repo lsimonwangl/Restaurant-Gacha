@@ -297,8 +297,29 @@ const triggerSearch = (location) => {
 
     const typesToSearch = ['restaurant', 'cafe', 'bakery', 'bar']
 
-    typesToSearch.forEach(type => {
-        performSearch(location, type)
+    // Radar Scan Strategy: Center + 4 Directions (approx 600m offset)
+    // 0.0055 lat is approx 600m
+    // 0.0060 lng is approx 600m (at 25deg lat)
+    const scanPoints = [
+        { lat: location.lat, lng: location.lng }, // Center
+        { lat: location.lat + 0.0055, lng: location.lng }, // North
+        { lat: location.lat - 0.0055, lng: location.lng }, // South
+        { lat: location.lat, lng: location.lng + 0.0060 }, // East
+        { lat: location.lat, lng: location.lng - 0.0060 }  // West
+    ]
+    
+    // Only use Radar Scan if Deep Search is enabled? 
+    // User requested "MORE results", so we should probably apply it generally or just for Deep Search?
+    // User said "I just want Restaurant", implying general usage.
+    // Let's apply it always, but maybe restrict radius for offsets?
+    // Actually, simply calling performSearch for all points is fine. The deduplication logic handles overlaps.
+
+    console.log(`📡 Initiating Radar Scan on ${scanPoints.length} points...`)
+
+    scanPoints.forEach(point => {
+        typesToSearch.forEach(type => {
+            performSearch(point, type)
+        })
     })
 }
 
