@@ -67,7 +67,7 @@ const addDistancesToDishes = (dishesArray) => {
 const showCreateDish = ref(false)
 const showCreateGroup = ref(false)
 const showAddToGroup = ref(false)
-const newDish = ref({ name: '', description: '', rarity: 'common', address: '', lat: null, lng: null })
+const newDish = ref({ name: '', description: '', rarity: 'common', address: '', lat: null, lng: null, place_id: null })
 const newGroup = ref({ name: '', description: '', is_public: false })
 const showManageGroups = ref(false)
 const selectedDish = ref(null)
@@ -134,12 +134,20 @@ const filterByGroup = async (group) => {
 const selectedFile = ref(null)
 const uploading = ref(false)
 
+// Info panel & map
+const infoPanelOpen = ref(false)
+const placeDetail = ref(null)
+const mapContainer = ref(null)
+let map = null
+let marker = null
+
 // Google Maps Places Search refs
 const searchQuery = ref('')
 const searchResults = ref([])
 const searching = ref(false)
+const editSearchResults = ref([]) // 編輯模式的搜尋結果
 let placesService = null
-let map = null
+let placesMap = null
 
 const loadGoogleMaps = () => {
     return new Promise((resolve, reject) => {
@@ -147,8 +155,8 @@ const loadGoogleMaps = () => {
             console.log('✅ Google Maps already loaded')
             return resolve(window.google)
         }
-        // API key 從環境變數讀取
-        const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+        // API key 從環境變數讀取，若未設定則 fallback 至開發用金鑰
+        const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyCR_kguf_pwjZ75R5FTUWRglvirN9w05x0'
         if (!key) {
             console.error('❌ Google Maps API key not set')
             return reject(new Error('Google Maps API key not set'))
@@ -170,21 +178,325 @@ const loadGoogleMaps = () => {
     })
 }
 
+const ensureMap = async () => {
+    await loadGoogleMaps()
+    const container = mapContainer.value
+    if (!container) return
+    const mountedDiv = map?.getDiv?.()
+    if (!map || mountedDiv !== container) {
+        map = new window.google.maps.Map(container, {
+            zoom: 16,
+            center: { lat: 23.5, lng: 121 }
+        })
+    }
+}
+
+const fetchPlaceDetail = async (query) => {
+    await initPlacesService()
+    return new Promise((resolve, reject) => {
+        placesService.findPlaceFromQuery({
+            query,
+            fields: ['place_id', 'name', 'formatted_address', 'geometry', 'rating', 'user_ratings_total', 'photos', 'opening_hours']
+        }, (results, status) => {
+            if (status !== window.google.maps.places.PlacesServiceStatus.OK || !results?.length) {
+                return reject(status)
+            }
+            const r = results[0]
+            // 用 getDetails 取得更完整的資訊
+            placesService.getDetails({
+                placeId: r.place_id,
+                fields: ['name', 'formatted_address', 'formatted_phone_number', 'international_phone_number', 'rating', 'user_ratings_total', 'photos', 'opening_hours', 'geometry']
+            }, (placeDetail, status) => {
+                if (status !== window.google.maps.places.PlacesServiceStatus.OK) {
+                    console.warn('getDetails failed, using findPlace results', status)
+                    const photoUrl = r.photos?.[0]?.getUrl({ maxWidth: 800, maxHeight: 600 })
+                    return resolve({
+                        name: r.name,
+                        address: r.formatted_address,
+                        phone: '',
+                        rating: r.rating,
+                        reviewCount: r.user_ratings_total,
+                        openingHours: r.opening_hours?.weekday_text,
+                        location: r.geometry?.location,
+                        photoUrl,
+                        placeId: r.place_id,
+                    })
+                }
+                const photoUrl = placeDetail.photos?.[0]?.getUrl({ maxWidth: 800, maxHeight: 600 })
+                resolve({
+                    name: placeDetail.name,
+                    address: placeDetail.formatted_address,
+                    phone: placeDetail.formatted_phone_number || placeDetail.international_phone_number || '',
+                    rating: placeDetail.rating,
+                    reviewCount: placeDetail.user_ratings_total,
+                    openingHours: placeDetail.opening_hours?.weekday_text,
+                    location: placeDetail.geometry?.location,
+                    photoUrl,
+                    placeId: r.place_id,
+                })
+            })
+        })
+    })
+}
+
+const showPlaceOnPanel = async (dish) => {
+    placeDetail.value = null
+    infoPanelOpen.value = true
+    await nextTick()
+
+    // 預設使用 dish 的基本資料
+    placeDetail.value = {
+        name: dish.name,
+        address: dish.address,
+        phone: '',
+        rating: null,
+        reviewCount: null,
+        openingHours: null,
+        photoUrl: dish.image_url || '',
+    }
+
+    let locationFromDetail = null
+
+    // 如果有 place_id，優先使用 getDetails 取得精準位置與資訊
+    if (dish.place_id) {
+        try {
+            await initPlacesService()
+            const detail = await new Promise((resolve, reject) => {
+                placesService.getDetails({
+                    placeId: dish.place_id,
+                    fields: ['name', 'formatted_address', 'formatted_phone_number', 'international_phone_number', 'rating', 'user_ratings_total', 'photos', 'opening_hours', 'geometry']
+                }, (placeDetail, status) => {
+                    if (status !== window.google.maps.places.PlacesServiceStatus.OK) {
+                        return reject(status)
+                    }
+                    const photoUrl = placeDetail.photos?.[0]?.getUrl({ maxWidth: 800, maxHeight: 600 })
+                    resolve({
+                        name: placeDetail.name,
+                        address: placeDetail.formatted_address,
+                        phone: placeDetail.formatted_phone_number || placeDetail.international_phone_number || '',
+                        rating: placeDetail.rating,
+                        reviewCount: placeDetail.user_ratings_total,
+                        openingHours: placeDetail.opening_hours?.weekday_text,
+                        location: placeDetail.geometry?.location,
+                        photoUrl,
+                    })
+                })
+            })
+
+            placeDetail.value = {
+                name: detail.name || dish.name,
+                address: detail.address || dish.address,
+                phone: detail.phone || '',
+                rating: detail.rating || null,
+                reviewCount: detail.reviewCount || null,
+                openingHours: detail.openingHours || null,
+                photoUrl: detail.photoUrl || dish.image_url || '',
+            }
+
+            locationFromDetail = detail.location || null
+        } catch (e) {
+            console.warn('查詢 place_id 失敗，改用基本資料', e)
+        }
+    }
+    // 沒有 place_id 時，不做額外搜尋，只顯示基本資料和儲存的座標
+
+    // 只要有座標就顯示大頭針
+    const fallbackLocation = (dish.lat && dish.lng) ? { lat: Number(dish.lat), lng: Number(dish.lng) } : null
+    const targetLocation = locationFromDetail || fallbackLocation
+
+    if (targetLocation) {
+        await ensureMap()
+        map.setCenter(targetLocation)
+        map.setZoom(16)
+        if (!marker) {
+            marker = new window.google.maps.Marker({ map })
+        } else {
+            marker.setMap(map)
+        }
+        marker.setPosition(targetLocation)
+        marker.setTitle(placeDetail.value.name)
+    }
+}
+
 const initPlacesService = async () => {
     try {
         await loadGoogleMaps()
-        if (!map) {
+        if (!placesMap) {
             // Create a hidden map element for Places service
             const hiddenMapDiv = document.createElement('div')
             hiddenMapDiv.style.display = 'none'
             document.body.appendChild(hiddenMapDiv)
-            map = new window.google.maps.Map(hiddenMapDiv, { center: { lat: 0, lng: 0 }, zoom: 1 })
+            placesMap = new window.google.maps.Map(hiddenMapDiv, { center: { lat: 0, lng: 0 }, zoom: 1 })
         }
-        placesService = new window.google.maps.places.PlacesService(map)
+        placesService = new window.google.maps.places.PlacesService(placesMap)
         console.log('✅ PlacesService initialized')
     } catch (e) {
         console.error('❌ Failed to init PlacesService:', e)
     }
+}
+
+const geocodeAddress = async (address) => {
+    if (!address || address.trim().length === 0) {
+        alert('請輸入地址')
+        return
+    }
+    
+    await loadGoogleMaps()
+    const geocoder = new window.google.maps.Geocoder()
+    try {
+        const results = await new Promise((resolve, reject) => {
+            geocoder.geocode({ address }, (results, status) => {
+                if (status === 'OK') {
+                    resolve(results)
+                } else {
+                    reject(status)
+                }
+            })
+        })
+        
+        if (results && results.length > 0) {
+            const location = results[0].geometry.location
+            newDish.value.lat = location.lat()
+            newDish.value.lng = location.lng()
+            newDish.value.address = results[0].formatted_address
+            console.log('✅ 地址已定位:', newDish.value.address, newDish.value.lat, newDish.value.lng)
+            alert('✅ 地址定位成功！')
+        } else {
+            alert('❌ 找不到該地址，請檢查是否輸入正確')
+        }
+    } catch (e) {
+        console.error('❌ Geocoding failed:', e)
+        alert('❌ 地址定位失敗，請檢查網路或地址內容')
+    }
+}
+
+const geocodeEditAddress = async (address) => {
+    if (!address || address.trim().length === 0) {
+        alert('請輸入地址')
+        return
+    }
+    
+    await loadGoogleMaps()
+    const geocoder = new window.google.maps.Geocoder()
+    try {
+        const results = await new Promise((resolve, reject) => {
+            geocoder.geocode({ address }, (results, status) => {
+                if (status === 'OK') {
+                    resolve(results)
+                } else {
+                    reject(status)
+                }
+            })
+        })
+        
+        if (results && results.length > 0) {
+            const location = results[0].geometry.location
+            editDishData.value.lat = location.lat()
+            editDishData.value.lng = location.lng()
+            editDishData.value.address = results[0].formatted_address
+            editDishData.value.place_id = null // 手動定位不帶 place_id
+            console.log('✅ 地址已定位:', editDishData.value.address, editDishData.value.lat, editDishData.value.lng)
+            alert('✅ 地址定位成功！')
+        } else {
+            alert('❌ 找不到該地址，請檢查是否輸入正確')
+        }
+    } catch (e) {
+        console.error('❌ Geocoding failed:', e)
+        alert('❌ 地址定位失敗，請檢查網路或地址內容')
+    }
+}
+
+const onCreateAddressInput = () => {
+    newDish.value.place_id = null
+    newDish.value.lat = null
+    newDish.value.lng = null
+}
+
+const onEditAddressInput = () => {
+    editDishData.value.place_id = null
+    editDishData.value.lat = null
+    editDishData.value.lng = null
+}
+
+const refetchPlaceId = async () => {
+    if (!editDishData.value.name || !editDishData.value.address) {
+        alert('請確保餐廳名稱和地址已填寫')
+        return
+    }
+    
+    // 移除郵遞區號（前面3-5位數字）
+    const addressWithoutPostal = editDishData.value.address.replace(/^\d{3,5}/, '').trim()
+    
+    // 檢查移除郵遞區號後是否還有門牌號碼
+    const hasNumber = /\d/.test(addressWithoutPostal)
+    
+    if (!hasNumber) {
+        // 地址不完整，搜尋附近餐廳
+        console.log('🔍 地址不完整，搜尋附近餐廳:', editDishData.value.address)
+        
+        try {
+            await initPlacesService()
+            const request = {
+                query: editDishData.value.address + ' 餐廳',
+                type: 'restaurant'
+            }
+            
+            placesService.textSearch(request, (results, status) => {
+                if (status === window.google.maps.places.PlacesServiceStatus.OK && results.length > 0) {
+                    console.log('✅ 找到', results.length, '家餐廳')
+                    console.log('📋 餐廳列表:', results.map(r => r.name))
+                    editSearchResults.value = results
+                    console.log('✅ editSearchResults 已設置，長度:', editSearchResults.value.length)
+                    // 使用 nextTick 確保 DOM 更新後再顯示 alert
+                    nextTick(() => {
+                        console.log('🔄 nextTick 執行，列表應該已渲染')
+                        alert(`⚠️ 地址不完整（缺少門牌號碼）\n\n已找到 ${results.length} 家附近餐廳，請從下方列表中選擇正確的餐廳`)
+                    })
+                } else {
+                    console.warn('❌ 搜尋狀態:', status, '結果數量:', results?.length || 0)
+                    editSearchResults.value = []
+                    alert('❌ 找不到附近餐廳，請輸入完整地址\n例如：台灣桃園市八德區中華路277號')
+                }
+            })
+        } catch (e) {
+            console.error('❌ 搜尋失敗:', e)
+            alert('❌ 搜尋失敗，請檢查網路連線')
+        }
+        return
+    }
+    
+    // 地址完整，直接搜尋
+    const query = `${editDishData.value.name} ${editDishData.value.address}`.trim()
+    console.log('🔍 搜尋餐廳資訊:', query)
+    
+    try {
+        const detail = await fetchPlaceDetail(query)
+        editDishData.value.place_id = detail.placeId
+        if (detail.location) {
+            editDishData.value.lat = detail.location.lat()
+            editDishData.value.lng = detail.location.lng()
+        }
+        editDishData.value.address = detail.address || editDishData.value.address
+        console.log('✅ 找到餐廳資訊:', detail.name, detail.placeId)
+        alert('✅ 已找到餐廳資訊，儲存後將顯示完整詳情')
+        editSearchResults.value = [] // 清空搜尋結果
+    } catch (e) {
+        console.warn('❌ 搜尋失敗:', e)
+        alert('❌ 找不到餐廳資訊，請確認名稱和地址正確')
+    }
+}
+
+const selectEditPlace = (place) => {
+    console.log('📍 選擇餐廳:', place)
+    editDishData.value.name = place.name || editDishData.value.name
+    editDishData.value.address = place.formatted_address || place.name || ''
+    editDishData.value.place_id = place.place_id || null
+    if (place.geometry && place.geometry.location) {
+        editDishData.value.lat = place.geometry.location.lat()
+        editDishData.value.lng = place.geometry.location.lng()
+    }
+    editSearchResults.value = [] // 清空搜尋結果
+    console.log('✅ 餐廳資訊已填入')
 }
 
 const searchRestaurants = async () => {
@@ -235,6 +547,7 @@ const selectPlace = async (place) => {
         console.log('📍 Selecting place:', place)
         newDish.value.name = place.name || ''
         newDish.value.address = place.formatted_address || place.name || ''
+        newDish.value.place_id = place.place_id || null // 儲存 place_id
         if (place.geometry && place.geometry.location) {
             newDish.value.lat = place.geometry.location.lat()
             newDish.value.lng = place.geometry.location.lng()
@@ -278,7 +591,7 @@ const createDish = async () => {
     if (duplicate) {
         alert(`⚠️ 已經有此餐廳了\n名稱: ${duplicate.name}\n地址: ${duplicate.address || '未設定'}`)
         // 清除表單
-        newDish.value = { name: '', description: '', rarity: 'common', address: '', lat: null, lng: null }
+        newDish.value = { name: '', description: '', rarity: 'common', address: '', lat: null, lng: null, place_id: null }
         selectedFile.value = null
         searchQuery.value = ''
         searchResults.value = []
@@ -295,6 +608,7 @@ const createDish = async () => {
         if (newDish.value.address) formData.append('address', newDish.value.address)
         if (newDish.value.lat) formData.append('lat', newDish.value.lat)
         if (newDish.value.lng) formData.append('lng', newDish.value.lng)
+        if (newDish.value.place_id) formData.append('place_id', newDish.value.place_id)
         if (selectedFile.value) {
             formData.append('image', selectedFile.value)
         }
@@ -304,7 +618,7 @@ const createDish = async () => {
         })
         
         showCreateDish.value = false
-        newDish.value = { name: '', description: '', rarity: 'common', address: '', lat: null, lng: null }
+        newDish.value = { name: '', description: '', rarity: 'common', address: '', lat: null, lng: null, place_id: null }
         selectedFile.value = null
         fetchDishes()
     } catch (e) {
@@ -380,34 +694,36 @@ const removeGroupFromDish = async (dish, groupInfo) => {
 const expandedDishId = ref(null)
 const wrapperHeights = ref({})
 
-const toggleExpand = (id, event) => {
+const toggleExpand = async (dish, event) => {
     // If clicking the same already expanded card, close it
-    if (expandedDishId.value === id) {
+    if (expandedDishId.value === dish.id) {
         expandedDishId.value = null
+        infoPanelOpen.value = false
+        placeDetail.value = null
         return
     }
 
     // Measure height before expanding
-    // We need to find the specific card element
-    // Since we are inside v-for, event.target is closest. 
-    // We aim for the .card-wrapper
-    const card = event.target.closest('.dish-card')
-    const wrapper = card.parentElement
+    const card = event?.target?.closest?.('.dish-card')
+    const wrapper = card?.parentElement
     if (wrapper) {
-        wrapperHeights.value[id] = wrapper.offsetHeight
+        wrapperHeights.value[dish.id] = wrapper.offsetHeight
     }
 
-    expandedDishId.value = id
+    expandedDishId.value = dish.id
+    await showPlaceOnPanel(dish)
 }
 
 const closeExpand = () => {
     expandedDishId.value = null
     wrapperHeights.value = {}
+    infoPanelOpen.value = false
+    placeDetail.value = null
 }
 
 // Edit Logic
 const showEditDish = ref(false)
-const editDishData = ref({ id: null, name: '', description: '', rarity: 'common' })
+const editDishData = ref({ id: null, name: '', description: '', rarity: 'common', address: '', lat: null, lng: null, place_id: null })
 const editFile = ref(null)
 
 // Group Edit Logic
@@ -447,6 +763,7 @@ const deleteGroup = async (group) => {
 const openEditDish = (dish) => {
     editDishData.value = { ...dish } // Copy data
     editFile.value = null
+    editSearchResults.value = [] // 清空搜尋結果
     showEditDish.value = true
 }
 
@@ -463,6 +780,10 @@ const updateDish = async () => {
         formData.append('name', editDishData.value.name)
         formData.append('description', editDishData.value.description || '')
         formData.append('rarity', editDishData.value.rarity)
+        formData.append('address', editDishData.value.address || '')
+        formData.append('lat', editDishData.value.lat !== null && editDishData.value.lat !== undefined ? editDishData.value.lat : '')
+        formData.append('lng', editDishData.value.lng !== null && editDishData.value.lng !== undefined ? editDishData.value.lng : '')
+        formData.append('place_id', editDishData.value.place_id || '')
         if (editFile.value) {
             formData.append('image', editFile.value)
         }
@@ -526,12 +847,13 @@ fetchGroups()
         <div v-for="dish in dishes" 
              :key="dish.id" 
              class="card-wrapper"
+             :class="{ 'card-behind-panel': infoPanelOpen }"
              :style="{ height: expandedDishId === dish.id ? wrapperHeights[dish.id] + 'px' : 'auto' }">
             
             <DishCard 
               :dish="dish"
               :is-expanded="expandedDishId === dish.id"
-              @toggle-expand="(e) => toggleExpand(dish.id, e)"
+                            @toggle-expand="(e) => toggleExpand(dish, e)"
               @add-to-group="openAddToGroup"
               @edit="openEditDish"
               @delete="deleteDish"
@@ -539,7 +861,47 @@ fetchGroups()
             />
         </div>
       </div>
-    </div>
+        </div>
+
+        <transition name="slide-fade">
+            <aside v-if="infoPanelOpen" class="info-panel">
+                <button class="info-close" @click="closeExpand">✕</button>
+                <div class="info-container">
+                    <!-- 左邊：餐廳資訊 -->
+                    <div class="info-left">
+                        <div v-if="placeDetail" class="info-body">
+                            <div v-if="placeDetail.photoUrl" class="info-photo">
+                                <img :src="placeDetail.photoUrl" alt="place photo">
+                            </div>
+                            <div v-else class="info-photo-placeholder">🍽️</div>
+                            
+                            <h3 class="info-title">{{ placeDetail.name }}</h3>
+                            
+                            <div class="info-rating" v-if="placeDetail.rating">
+                                <span class="stars">⭐ {{ placeDetail.rating }}</span>
+                                <span v-if="placeDetail.reviewCount" class="review-count">({{ placeDetail.reviewCount }} 則評論)</span>
+                            </div>
+                            
+                            <p class="info-address">📍 {{ placeDetail.address || '無地址資料' }}</p>
+                            <p v-if="placeDetail.phone" class="info-line">📞 {{ placeDetail.phone }}</p>
+                            
+                            <div v-if="placeDetail.openingHours" class="info-hours">
+                                <p class="hours-title">營業時間</p>
+                                <ul class="hours-list">
+                                    <li v-for="(hour, idx) in placeDetail.openingHours" :key="idx" class="hour-item">{{ hour }}</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div v-else class="info-loading">載入中...</div>
+                    </div>
+                    
+                    <!-- 右邊：地圖 -->
+                    <div class="info-right">
+                        <div class="info-map" ref="mapContainer"></div>
+                    </div>
+                </div>
+            </aside>
+        </transition>
     
     <!-- Create Dish Modal -->
     <div v-if="showCreateDish" class="modal-overlay">
@@ -570,7 +932,12 @@ fetchGroups()
         
         <input v-model="newDish.name" placeholder="餐廳名稱" class="input-field">
         <input v-model="newDish.description" placeholder="描述" class="input-field">
-        <input v-model="newDish.address" placeholder="地址（搜尋後會自動填入，可手動修改）" class="input-field">
+        <div style="display: flex; gap: 0.5rem;">
+          <input v-model="newDish.address" @input="onCreateAddressInput" placeholder="地址（搜尋後會自動填入，可手動修改）" class="input-field" style="flex: 1;">
+          <button class="btn-primary" @click="geocodeAddress(newDish.address)" style="white-space: normal; line-height: 1.3; padding: 0.5rem 0.8rem;">
+            📍 定位<br><span style="font-size: 0.8em;">顯示地圖</span>
+          </button>
+        </div>
 
         <!-- File Upload -->
         <div class="file-upload-group">
@@ -630,7 +997,25 @@ fetchGroups()
         <h3>編輯餐廳</h3>
         <input v-model="editDishData.name" placeholder="餐廳名稱" class="input-field">
         <input v-model="editDishData.description" placeholder="描述" class="input-field">
-        <input v-model="editDishData.address" placeholder="地址" class="input-field">
+        <div style="display: flex; gap: 0.5rem;">
+          <input v-model="editDishData.address" @input="onEditAddressInput" placeholder="地址" class="input-field" style="flex: 1;">
+          <button class="btn-primary" @click="geocodeEditAddress(editDishData.address)" style="white-space: normal; line-height: 1.3; padding: 0.5rem 0.8rem;">
+            📍 定位<br><span style="font-size: 0.8em;">顯示地圖</span>
+          </button>
+        </div>
+        <button class="btn-secondary" @click="refetchPlaceId" style="width: 100%;">🔍 重新搜尋餐廳資訊（恢復評分、電話等）</button>
+        
+        <!-- Edit Search Results List -->
+        <div v-if="editSearchResults.length > 0" style="border: 2px solid var(--primary-color); background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+          <div style="font-weight: bold; margin-bottom: 0.5rem; color: var(--primary-color); font-size: 1.1rem;">✅ 選擇正確的餐廳 (共 {{ editSearchResults.length }} 家)：</div>
+          <div style="max-height: 400px; overflow-y: auto; padding-right: 0.5rem;">
+            <div v-for="(result, idx) in editSearchResults" :key="idx" @click="selectEditPlace(result)" style="cursor: pointer; padding: 1rem; background: rgba(255,255,255,0.08); border-radius: 6px; margin-bottom: 0.8rem; border: 1px solid rgba(255,255,255,0.2); transition: all 0.2s; min-height: 60px;">
+              <div style="font-weight: bold; font-size: 1rem; margin-bottom: 0.3rem;">{{ result.name }}</div>
+              <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.2rem;">{{ result.formatted_address }}</div>
+              <div v-if="result.rating" style="font-size: 0.85rem; color: var(--accent);">⭐ {{ result.rating }} ({{ result.user_ratings_total }} 則評論)</div>
+            </div>
+          </div>
+        </div>
         
         <!-- File Upload -->
         <div class="file-upload-group">
@@ -720,7 +1105,7 @@ fetchGroups()
 .click-outside-overlay {
     position: fixed !important; /* Force Viewport */
     inset: 0;
-    z-index: 9998; /* High Z */
+    z-index: 140; /* Below info-panel (150) */
     background: rgba(0,0,0,0.7); 
     backdrop-filter: blur(5px);
     cursor: default;
@@ -762,6 +1147,12 @@ fetchGroups()
 .card-wrapper {
   position: relative;
   /* width and height are managed by grid */
+  transition: all 0.3s ease;
+}
+
+.card-wrapper.card-behind-panel {
+  opacity: 0.3;
+  pointer-events: none;
 }
 
 /* Modals */
@@ -946,5 +1337,197 @@ fetchGroups()
 
 .search-result-item:hover {
     background: rgba(255, 255, 255, 0.1);
+}
+
+.info-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 1000px;
+    height: 650px;
+    background: var(--card-bg);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+    z-index: 150;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.info-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.info-close:hover {
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+}
+
+.info-container {
+    display: flex;
+    height: 100%;
+    gap: 0;
+}
+
+.info-left {
+    flex: 0 0 45%;
+    padding: 1.5rem;
+    overflow-y: auto;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    max-height: 650px;
+}
+
+.info-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.info-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.info-photo {
+    width: 100%;
+    height: 260px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 1rem;
+}
+
+.info-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.info-photo-placeholder {
+    width: 100%;
+    height: 260px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 64px;
+    background: rgba(255, 255, 255, 0.05);
+    margin-bottom: 1rem;
+}
+
+.info-title {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+.info-rating {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.stars {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fbbf24;
+}
+
+.review-count {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.info-address {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.info-line {
+    margin: 0.5rem 0 0 0;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+}
+
+.info-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.info-link:hover {
+    text-decoration: underline;
+}
+
+.info-hours {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hours-title {
+    margin: 0 0 0.5rem 0;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.hours-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.hour-item {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0.25rem 0;
+    padding: 0.2rem 0;
+}
+
+.info-map {
+    flex: 1;
+    border-radius: 0;
+    overflow: hidden;
+    border: none;
+}
+
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: all 0.25s ease;
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.95);
+}
+
+@media (max-width: 1200px) {
+  .info-panel {
+    width: 90vw;
+    height: 80vh;
+    max-width: 1000px;
+    max-height: 650px;
+  }
 }
 </style>

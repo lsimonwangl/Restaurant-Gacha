@@ -54,10 +54,17 @@ class DishService {
             image_url = dish.image_url;
         }
 
-        await Dish.update(id, {
+        // 確保空字串轉換為 null
+        const updateData = {
             ...dishData,
-            image_url
-        });
+            image_url,
+            place_id: dishData.place_id || null,
+            lat: dishData.lat || null,
+            lng: dishData.lng || null,
+            address: dishData.address || null
+        };
+
+        await Dish.update(id, updateData);
 
         return await Dish.findById(id);
     }

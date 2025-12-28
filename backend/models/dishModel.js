@@ -22,21 +22,21 @@ class Dish {
 
     static async create(dish, userId) {
         console.log('Dish.create called with dish:', dish, 'userId:', userId);
-        const { name, description, image_url, address, lat, lng, rarity } = dish;
-        console.log('Extracted values:', { name, description, image_url, address, lat, lng, rarity, userId });
+        const { name, description, image_url, address, lat, lng, place_id, rarity } = dish;
+        console.log('Extracted values:', { name, description, image_url, address, lat, lng, place_id, rarity, userId });
         const [result] = await db.query(
-            'INSERT INTO `dishes` (name, description, image_url, address, lat, lng, rarity, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [name, description, image_url, address || null, lat || null, lng || null, rarity, userId]
+            'INSERT INTO `dishes` (name, description, image_url, address, lat, lng, place_id, rarity, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [name, description, image_url, address || null, lat || null, lng || null, place_id || null, rarity, userId]
         );
         console.log('Insert result:', result);
         return result.insertId;
     }
 
     static async update(id, dish) {
-        const { name, description, image_url, rarity, address, lat, lng } = dish;
+        const { name, description, image_url, rarity, address, lat, lng, place_id } = dish;
         await db.query(
-            'UPDATE `dishes` SET name = ?, description = ?, image_url = ?, address = ?, lat = ?, lng = ?, rarity = ? WHERE id = ?',
-            [name, description, image_url, address || null, lat || null, lng || null, rarity, id]
+            'UPDATE `dishes` SET name = ?, description = ?, image_url = ?, address = ?, lat = ?, lng = ?, place_id = ?, rarity = ? WHERE id = ?',
+            [name, description, image_url, address || null, lat || null, lng || null, place_id || null, rarity, id]
         );
     }
 
