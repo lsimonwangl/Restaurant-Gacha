@@ -71,34 +71,7 @@ const searching = ref(false)
 let placesService = null
 let map = null
 
-const loadGoogleMaps = () => {
-    return new Promise((resolve, reject) => {
-        if (window.google && window.google.maps && window.google.maps.places) {
-            console.log('✅ Google Maps already loaded')
-            return resolve(window.google)
-        }
-        // API key 從環境變數讀取
-        const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-        if (!key) {
-            console.error('❌ Google Maps API key not set')
-            return reject(new Error('Google Maps API key not set'))
-        }
-        console.log('📡 Loading Google Maps API...')
-        const script = document.createElement('script')
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&v=weekly`
-        script.async = true
-        script.defer = true
-        script.onload = () => {
-            console.log('✅ Google Maps API loaded successfully')
-            resolve(window.google)
-        }
-        script.onerror = (error) => {
-            console.error('❌ Google Maps API failed to load:', error)
-            reject(error)
-        }
-        document.head.appendChild(script)
-    })
-}
+import { loadGoogleMaps } from '../utils/googleMaps'
 
 const initPlacesService = async () => {
     try {
@@ -799,7 +772,17 @@ fetchGroups()
     /* Removed width: 100% and border to let it flow next to buttons */
     padding-left: 1rem; /* Add visual separation */
     border-left: 1px solid rgba(255,255,255,0.2); /* Vertical divider */
-    height: 2rem; /* Align vertically with buttons if needed */
+    /* REMOVED fixed height to allow wrapping content */
+    margin-left: 0.5rem;
+}
+@media (max-width: 768px) {
+    .group-list-display {
+        border-left: none;
+        padding-left: 0;
+        margin-left: 0;
+        margin-top: 0.5rem;
+        width: 100%; /* Force new line on mobile */
+    }
 }
 
 .group-tag-display {

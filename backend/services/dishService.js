@@ -1,6 +1,6 @@
 const Dish = require('../models/dishModel');
 const Group = require('../models/groupModel');
-const { uploadToS3 } = require('../middleware/uploadMiddleware');
+const StorageService = require('./storageService');
 
 class DishService {
     static async getAllDishes(userId) {
@@ -16,17 +16,34 @@ class DishService {
     }
 
     static async createDish(userId, dishData, file) {
-        console.log('DishService.createDish called with userId:', userId, 'dishData:', dishData, 'file:', file ? 'yes' : 'no');
         let image_url = dishData.image_url || '';
 
-        if (file) {
-            image_url = await uploadToS3(file, 'dishes');
+        // Handle Google Maps Photo URL -> Download and re-upload to S3
+        if (!file && image_url && image_url.includes('google')) {
+            try {
+                console.log('Downloading Google Image:', image_url.substring(0, 50) + '...');
+                const axios = require('axios');
+                const response = await axios.get(image_url, { responseType: 'arraybuffer' });
+                const buffer = Buffer.from(response.data, 'binary');
+                const contentType = response.headers['content-type'] || 'image/jpeg';
+
+                // Use StorageService directly - no mocking needed!
+                image_url = await StorageService.uploadFile(buffer, 'google_import.jpg', contentType);
+                console.log('Google Image re-uploaded to S3:', image_url);
+            } catch (error) {
+                console.error('Failed to process Google Image:', error.message);
+                // Fallback: keep original URL but log error
+            }
+        }
+        else if (file) {
+            // file is from multer: { buffer, originalname, mimetype }
+            image_url = await StorageService.uploadFile(file.buffer, file.originalname, file.mimetype);
         }
 
         console.log('Inserting dish with image_url:', image_url);
         const newDishId = await Dish.create({
             ...dishData,
-            image_url
+            image_url // Now a persistent S3 URL (or original if failed)
         }, userId);
 
         console.log('Dish created with id:', newDishId);
@@ -48,7 +65,7 @@ class DishService {
         let image_url = dishData.image_url;
 
         if (file) {
-            image_url = await uploadToS3(file, 'dishes');
+            image_url = await StorageService.uploadFile(file.buffer, file.originalname, file.mimetype);
         } else if (image_url === undefined) {
             // Keep existing if not provided
             image_url = dish.image_url;

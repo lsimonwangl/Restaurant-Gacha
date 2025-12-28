@@ -18,6 +18,10 @@ const logout = () => {
 }
 
 const version = __APP_VERSION__
+
+import { useRoute } from 'vue-router'
+const route = useRoute()
+const isFullWidthPage = computed(() => ['/nearby'].includes(route.path))
 </script>
 
 <template>
@@ -30,6 +34,7 @@ const version = __APP_VERSION__
     </div>
     <nav>
       <RouterLink to="/restaurants" class="nav-link">我的餐廳</RouterLink>
+      <RouterLink to="/nearby" class="nav-link">附近餐廳</RouterLink>
       <RouterLink to="/explore" class="nav-link">探索社群</RouterLink>
       <div class="divider"></div>
       <RouterLink v-if="!isAuthenticated" to="/login" class="nav-link">登入</RouterLink>
@@ -47,7 +52,7 @@ const version = __APP_VERSION__
     </nav>
   </header>
 
-  <main class="container">
+  <main :class="{ 'container': !isFullWidthPage, 'full-width-main': isFullWidthPage }">
     <RouterView />
   </main>
 
@@ -57,6 +62,13 @@ const version = __APP_VERSION__
 </template>
 
 <style scoped>
+.full-width-main {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Ensure no scrollbars from map */
+}
 .navbar {
   margin: 1rem;
   padding: 0.8rem 2rem;
