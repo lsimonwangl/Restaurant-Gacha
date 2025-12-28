@@ -3,6 +3,7 @@ import { ref, onMounted, watch, shallowRef, toRaw } from 'vue'
 import { dishesApi } from '../api/dishes'
 import { loadGoogleMaps } from '../utils/googleMaps'
 import RestaurantReviewsModal from '../components/RestaurantReviewsModal.vue'
+import { useNearbyStore } from '../stores/nearby'
 
 const mapContainer = ref(null)
 const loading = ref(true)
@@ -243,6 +244,10 @@ const performSearch = (location, type) => {
             const newResults = results.filter(r => !existingIds.has(r.place_id))
             
             nearbyRestaurants.value = [...nearbyRestaurants.value, ...newResults]
+            
+            // Update Cache
+            nearbyStore.setRestaurants(nearbyRestaurants.value, currentLocation)
+            
             updateMarkers()
 
             // Fetch next page if available
@@ -287,50 +292,7 @@ const triggerSearch = (location) => {
     })
 }
 
-const initMap = async (lat, lng) => {
-    try {
-        const google = await loadGoogleMaps()
-        currentLocation = { lat, lng }
-        
-        // Initialize Map
-        map = new google.maps.Map(mapContainer.value, {
-            center: currentLocation,
-            zoom: 15,
-            styles: mapStyle, // Apply dark style
-            disableDefaultUI: false,
-            zoomControl: true,
-            mapTypeControl: false,
-            streetViewControl: false,
-            fullscreenControl: true
-        })
-
-        // Current Location Marker (Blue Dot)
-        new google.maps.Marker({
-            position: currentLocation,
-            map: map,
-            icon: {
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 10,
-                fillColor: "#4285F4",
-                fillOpacity: 1,
-                strokeColor: "white",
-                strokeWeight: 2,
-            },
-            title: "你目前的位置",
-            zIndex: 999 
-        })
-
-        infoWindow = new google.maps.InfoWindow()
-        placesService = new google.maps.places.PlacesService(map)
-
-        // Start Search
-        triggerSearch(currentLocation)
-
-    } catch (e) {
-        console.error("Map Init Error:", e)
-        error.value = "地圖載入失敗"
-    }
-}
+const nearbyStore = useNearbyStore()
 
 // Watch for filter changes
 watch(minRating, () => {
@@ -369,6 +331,61 @@ const getPreciseLocation = () => {
         )
     })
 }
+
+const initMap = async (lat, lng) => {
+    try {
+        const google = await loadGoogleMaps()
+        currentLocation = { lat, lng }
+        
+        // Initialize Map
+        map = new google.maps.Map(mapContainer.value, {
+            center: currentLocation,
+            zoom: 15,
+            styles: mapStyle, // Apply dark style
+            disableDefaultUI: false,
+            zoomControl: true,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: true
+        })
+
+        // Current Location Marker (Blue Dot)
+        new google.maps.Marker({
+            position: currentLocation,
+            map: map,
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 10,
+                fillColor: "#4285F4",
+                fillOpacity: 1,
+                strokeColor: "white",
+                strokeWeight: 2,
+            },
+            title: "你目前的位置",
+            zIndex: 999 
+        })
+
+        infoWindow = new google.maps.InfoWindow()
+        placesService = new google.maps.places.PlacesService(map)
+
+        // SMART CACHE CHECK
+        if (nearbyStore.shouldRefresh(currentLocation)) {
+             console.log('🌍 New location detected (or cache expired), triggering search...')
+             triggerSearch(currentLocation)
+        } else {
+             console.log('💾 Using cached restaurant data')
+             nearbyRestaurants.value = nearbyStore.restaurants
+             updateMarkers()
+             loading.value = false
+        }
+
+    } catch (e) {
+        console.error("Map Init Error:", e)
+        error.value = "地圖載入失敗"
+    }
+}
+
+
 
 onMounted(async () => {
     loading.value = true
