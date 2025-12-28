@@ -15,6 +15,7 @@ let map = null
 let placesService = null
 let infoWindow = null
 let currentLocation = null
+const nextPageToken = ref(null)
 const saving = ref(false)
 const isExpanded = ref(false)
 const isMobile = ref(window.innerWidth < 600)
@@ -353,12 +354,32 @@ onMounted(async () => {
                 },
                 (err) => {
                     console.error("Geolocation Error:", err)
-                    error.value = "無法取得您的位置，請確認已允許定位權限。"
+                    let msg = "無法取得您的位置。"
+                    switch(err.code) {
+                        case err.PERMISSION_DENIED:
+                            msg = "您拒絕了定位權限，請至瀏覽器設定開啟。"
+                            break
+                        case err.POSITION_UNAVAILABLE:
+                            msg = "無法偵測到您的位置。"
+                            break
+                        case err.TIMEOUT:
+                            msg = "定位請求逾時，請稍後再試。"
+                            break
+                    }
+                    
                     // Fallback: Taipei Main Station
-                    initMap(25.0478, 121.5170)
+                    // Use .then() because initMap is async and calls triggerSearch which clears error.value being sync.
+                    // We want to ensure error.value is set AFTER triggerSearch clears it.
+                    initMap(25.0478, 121.5170).then(() => {
+                        error.value = msg
+                    })
                     loading.value = false
                 },
-                { enableHighAccuracy: true }
+                { 
+                    enableHighAccuracy: false, // Prioritize speed and reliability over precision
+                    timeout: 15000, // 15 seconds timeout
+                    maximumAge: 30000 // Accept cached positions up to 30 seconds old
+                }
             )
         } else {
             error.value = "您的瀏覽器不支援定位功能。"
