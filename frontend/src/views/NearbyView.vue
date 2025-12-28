@@ -19,7 +19,9 @@ let currentLocation = null
 const nextPageToken = ref(null)
 const saving = ref(false)
 const isExpanded = ref(false)
+
 const isMobile = ref(window.innerWidth < 600)
+const useDeepSearch = ref(false) // Toggle for RankBy.DISTANCE
 
 const checkMobile = () => {
     isMobile.value = window.innerWidth < 600
@@ -235,6 +237,14 @@ const performSearch = (location, type) => {
         }
     }
 
+    // Apply Deep Search (Rank by Distance)
+    if (useDeepSearch.value) {
+        request.rankBy = window.google.maps.places.RankBy.DISTANCE
+        delete request.radius // Radius must not be supplied when using rankBy DISTANCE
+        // Google mandates 'location' + 'rankBy=DISTANCE' + ('keyword' OR 'name' OR 'type')
+        // We already have 'type' and 'location'.
+    }
+
     activeSearches.value++
 
     placesService.nearbySearch(request, (results, status, pagination) => {
@@ -285,7 +295,7 @@ const triggerSearch = (location) => {
     loading.value = true 
     activeSearches.value = 0
 
-    const typesToSearch = ['restaurant', 'cafe', 'meal_takeaway', 'bakery', 'bar', 'food']
+    const typesToSearch = ['restaurant', 'cafe', 'bakery', 'bar']
 
     typesToSearch.forEach(type => {
         performSearch(location, type)
@@ -302,6 +312,13 @@ watch(minRating, () => {
 watch(maxPrice, () => {
     if (currentLocation) {
         triggerSearch(currentLocation) // Server-side filter (requires re-fetch)
+    }
+})
+
+watch(useDeepSearch, () => {
+    if (currentLocation) {
+        console.log('🔄 Toggling Deep Search mode...')
+        triggerSearch(currentLocation)
     }
 })
 
@@ -387,6 +404,24 @@ const initMap = async (lat, lng) => {
 
 
 
+const refreshLocation = () => {
+    loading.value = true
+    error.value = null
+    
+    getPreciseLocation()
+        .then((position) => {
+            console.log('🔄 Manual refresh: location updated')
+            currentLocation = { lat: position.coords.latitude, lng: position.coords.longitude }
+            // Force search and update cache
+            triggerSearch(currentLocation)
+        })
+        .catch((err) => {
+             console.error("Refresh Error:", err)
+             error.value = "無法更新位置，請稍後再試"
+             loading.value = false
+        })
+}
+
 onMounted(async () => {
     loading.value = true
     try {
@@ -450,10 +485,23 @@ onMounted(async () => {
                 </select>
             </div>
 
+            <div class="control-group" v-show="isExpanded || !isMobile">
+                <label style="display: flex; align-items: center; cursor: pointer; gap: 8px;">
+                    <input type="checkbox" v-model="useDeepSearch" style="width: 16px; height: 16px;">
+                    <span>地毯式搜索 (包含小店)</span>
+                </label>
+                <small style="color: #64748b; font-size: 0.75rem;">由近到遠搜尋，忽略 1.5km 限制</small>
+            </div>
+
             <div class="stats" v-if="!loading && (isExpanded || !isMobile)">
                 找到 {{ nearbyRestaurants.length }} 間餐廳
                 <span v-if="minRating > 0">(符合條件: {{ markers.length }})</span>
             </div>
+
+            <!-- Manually Refresh Button -->
+            <button class="btn-refresh" @click="refreshLocation" v-if="!loading">
+                <span>📍</span> 重新整理位置
+            </button>
 
             <!-- Pagination Button -->
             <button v-if="nextPageToken && !loading" class="btn-load-more" @click="loadMoreResults">
@@ -572,6 +620,35 @@ onMounted(async () => {
     padding-top: 0.5rem;
 }
 
+
+.btn-refresh {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+    padding: 0.8rem 1rem;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-top: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-refresh:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3);
+    filter: brightness(1.1);
+}
+
+.btn-refresh:active {
+    transform: translateY(0);
+}
+
 .btn-load-more {
     background: var(--primary-color);
     color: white;
@@ -602,7 +679,8 @@ onMounted(async () => {
 .loading-overlay {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: #1a1a1a;
+    background: rgba(26, 26, 26, 0.8);
+    backdrop-filter: blur(4px);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -610,6 +688,7 @@ onMounted(async () => {
     z-index: 20;
     color: white;
 }
+
 
 .error-banner {
     position: absolute;
