@@ -166,6 +166,13 @@ const deleteAccount = async () => {
         </form>
     </div>
 
+    <!-- Developer Tools -->
+    <div class="glass-panel dev-card">
+        <h3>🛠️ 開發人員工具</h3>
+        <p>進階系統管理功能。</p>
+        <button @click="router.push('/terminal')" class="btn-secondary">開啟 SQL 終端機</button>
+    </div>
+
     <!-- Danger Zone -->
     <div class="glass-panel danger-card">
         <h3>🚨 危險區域</h3>

@@ -16,18 +16,16 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 // Routes
+const termnialRoutes = require('./routes/terminalRoutes');
 const dishRoutes = require('./routes/dishRoutes');
 const gachaRoutes = require('./routes/gachaRoutes');
 const groupRoutes = require('./routes/groupRoutes');
 const authRoutes = require('./routes/authRoutes');
-
-// DEBUG ENDPOINT
-
-
 app.use('/api/auth', authRoutes);
 app.use('/api/dishes', dishRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/gacha', gachaRoutes);
+app.use('/api/terminal', termnialRoutes);
 
 // Test Route
 app.get('/', (req, res) => {
