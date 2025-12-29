@@ -49,7 +49,10 @@ const submit = () => {
     <div v-if="modelValue" class="modal-overlay">
       <div class="glass-panel modal">
         <h3>{{ isEdit ? '編輯餐廳' : '新增餐廳' }}</h3>
-        <input v-model="formData.name" placeholder="餐廳名稱" class="input-field">
+        <div class="form-group">
+          <label>餐廳名稱 <span class="required-asterisk">*</span></label>
+          <input v-model="formData.name" placeholder="餐廳名稱" class="input-field">
+        </div>
         <input v-model="formData.description" placeholder="描述" class="input-field">
         
         <!-- File Upload -->
@@ -116,5 +119,20 @@ const submit = () => {
     gap: 0.5rem;
     color: var(--text-main);
     font-size: 0.9rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-muted, #cbd5e1);
+}
+
+.required-asterisk {
+    color: #ef4444;
+    margin-left: 4px;
 }
 </style>

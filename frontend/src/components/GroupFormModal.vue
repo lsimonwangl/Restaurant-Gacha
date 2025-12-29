@@ -35,7 +35,10 @@ const submit = () => {
     <div v-if="modelValue" class="modal-overlay">
       <div class="glass-panel modal">
         <h3>{{ isEdit ? '編輯群組' : '新增群組' }}</h3>
-        <input v-model="formData.name" placeholder="群組名稱" class="input-field">
+        <div class="form-group">
+          <label>群組名稱 <span class="required-asterisk">*</span></label>
+          <input v-model="formData.name" placeholder="群組名稱 (例如: 公司附近)" class="input-field">
+        </div>
         <input v-model="formData.description" placeholder="描述" class="input-field">
          <div class="checkbox-group">
             <input type="checkbox" :id="'publicGroup-' + (isEdit ? 'edit' : 'new')" v-model="formData.is_public">
@@ -84,5 +87,20 @@ const submit = () => {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-muted, #cbd5e1);
+}
+
+.required-asterisk {
+    color: #ef4444;
+    margin-left: 4px;
 }
 </style>

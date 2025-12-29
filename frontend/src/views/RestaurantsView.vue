@@ -904,8 +904,11 @@ fetchGroups()
         
         <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 1rem 0;">
         
-        <input v-model="newDish.name" placeholder="餐廳名稱" class="input-field">
-        <input v-model="newDish.description" placeholder="描述" class="input-field">
+                <div class="form-group">
+                    <label>餐廳名稱 <span class="required-asterisk">*</span></label>
+                    <input v-model="newDish.name" placeholder="餐廳名稱" class="input-field">
+                </div>
+                <input v-model="newDish.description" placeholder="描述" class="input-field">
         <div style="display: flex; gap: 0.5rem;">
           <input v-model="newDish.address" @input="onCreateAddressInput" placeholder="地址（搜尋後會自動填入，可手動修改）" class="input-field" style="flex: 1;">
           <button class="btn-primary" @click="geocodeAddress(newDish.address)" style="white-space: normal; line-height: 1.3; padding: 0.5rem 0.8rem;">
@@ -938,8 +941,11 @@ fetchGroups()
     <div v-if="showCreateGroup" class="modal-overlay">
       <div class="glass-panel modal">
         <h3>新增群組</h3>
-        <input v-model="newGroup.name" placeholder="群組名稱 (例如: 公司附近)" class="input-field">
-        <input v-model="newGroup.description" placeholder="描述" class="input-field">
+                <div class="form-group">
+                    <label>群組名稱 <span class="required-asterisk">*</span></label>
+                    <input v-model="newGroup.name" placeholder="群組名稱 (例如: 公司附近)" class="input-field">
+                </div>
+                <input v-model="newGroup.description" placeholder="描述" class="input-field">
         <div class="checkbox-group">
             <input type="checkbox" id="publicGroup" v-model="newGroup.is_public">
             <label for="publicGroup">設為公開 (其他人可以收藏)</label>
@@ -969,8 +975,11 @@ fetchGroups()
     <div v-if="showEditDish" class="modal-overlay">
       <div class="glass-panel modal">
         <h3>編輯餐廳</h3>
-        <input v-model="editDishData.name" placeholder="餐廳名稱" class="input-field">
-        <input v-model="editDishData.description" placeholder="描述" class="input-field">
+                <div class="form-group">
+                    <label>餐廳名稱 <span class="required-asterisk">*</span></label>
+                    <input v-model="editDishData.name" placeholder="餐廳名稱" class="input-field">
+                </div>
+                <input v-model="editDishData.description" placeholder="描述" class="input-field">
         <div style="display: flex; gap: 0.5rem;">
           <input v-model="editDishData.address" @input="onEditAddressInput" placeholder="地址" class="input-field" style="flex: 1;">
           <button class="btn-primary" @click="geocodeEditAddress(editDishData.address)" style="white-space: normal; line-height: 1.3; padding: 0.5rem 0.8rem;">
@@ -1039,8 +1048,11 @@ fetchGroups()
     <div v-if="showEditGroup" class="modal-overlay">
       <div class="glass-panel modal">
         <h3>編輯群組</h3>
-        <input v-model="editGroupData.name" placeholder="群組名稱" class="input-field">
-        <input v-model="editGroupData.description" placeholder="描述" class="input-field">
+                <div class="form-group">
+                    <label>群組名稱 <span class="required-asterisk">*</span></label>
+                    <input v-model="editGroupData.name" placeholder="群組名稱" class="input-field">
+                </div>
+                <input v-model="editGroupData.description" placeholder="描述" class="input-field">
          <div class="checkbox-group">
             <input type="checkbox" id="editPublicGroup" v-model="editGroupData.is_public">
             <label for="editPublicGroup">設為公開</label>
@@ -1150,6 +1162,22 @@ fetchGroups()
   gap: 1rem;
   justify-content: flex-end;
   margin-top: 1.5rem;
+}
+
+.form-group {
+    margin-bottom: 1.2rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.4rem;
+    color: var(--text-muted, #cbd5e1);
+    font-size: 0.95rem;
+}
+
+.required-asterisk {
+    color: #ef4444;
+    margin-left: 4px;
 }
 
 .btn-small {

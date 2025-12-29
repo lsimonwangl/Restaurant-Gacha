@@ -141,7 +141,7 @@ const deleteAccount = async () => {
       <!-- Basic Info Form -->
       <form @submit.prevent="updateProfile" class="profile-form">
         <div class="form-group">
-          <label>顯示名稱</label>
+                    <label>顯示名稱 <span class="required-asterisk">*</span></label>
           <input v-model="name" type="text" required>
         </div>
         <button type="submit" class="btn-primary" :disabled="authStore.loading">
@@ -155,11 +155,11 @@ const deleteAccount = async () => {
         <h3>🔒 帳號安全</h3>
         <form @submit.prevent="changePassword" class="security-form">
             <div class="form-group">
-                <label>舊密碼</label>
+                <label>舊密碼 <span class="required-asterisk">*</span></label>
                 <input v-model="oldPassword" type="password" required>
             </div>
             <div class="form-group">
-                <label>新密碼</label>
+                <label>新密碼 <span class="required-asterisk">*</span></label>
                 <input v-model="newPassword" type="password" required>
             </div>
             <button type="submit" class="btn-secondary" :disabled="authStore.loading">修改密碼</button>
@@ -286,6 +286,12 @@ h2, h3 {
     display: block;
     margin-bottom: 0.5rem;
     color: var(--text-muted, #cbd5e1);
+}
+
+/* Required field asterisk */
+.required-asterisk {
+    color: #ef4444; /* red-500 */
+    margin-left: 4px;
 }
 
 input[type="text"],
