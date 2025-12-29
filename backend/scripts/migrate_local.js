@@ -78,7 +78,8 @@ async function migrate() {
             await connection.query("ALTER TABLE `dishes` ADD COLUMN `address` VARCHAR(500)");
             await connection.query("ALTER TABLE `dishes` ADD COLUMN `lat` DECIMAL(10,7)");
             await connection.query("ALTER TABLE `dishes` ADD COLUMN `lng` DECIMAL(10,7)");
-            console.log('✅ Added address/lat/lng columns to dishes.');
+            await connection.query("ALTER TABLE `dishes` ADD COLUMN `place_id` VARCHAR(255) NULL");
+            console.log('✅ Added address/lat/lng/place_id columns to dishes.');
         } catch (err) {
             // Error codes when column exists vary; just warn
             console.log('ℹ️ address/lat/lng columns may already exist or could not be added: ' + err.message);

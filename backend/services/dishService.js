@@ -112,7 +112,11 @@ class DishService {
             name: sourceDish.name,
             description: sourceDish.description,
             image_url: sourceDish.image_url,
-            rarity: sourceDish.rarity
+            rarity: sourceDish.rarity,
+            address: sourceDish.address,
+            lat: sourceDish.lat,
+            lng: sourceDish.lng,
+            place_id: sourceDish.place_id
         }, userId);
 
         return await Dish.findById(newDishId);
@@ -130,7 +134,11 @@ class DishService {
                 name: dish.name,
                 description: dish.description,
                 image_url: dish.image_url,
-                rarity: dish.rarity
+                rarity: dish.rarity,
+                address: dish.address,
+                lat: dish.lat,
+                lng: dish.lng,
+                place_id: dish.place_id
             }, userId);
             count++;
         }

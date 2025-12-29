@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS `dishes` (
   address VARCHAR(500),
   lat DECIMAL(10,7),
   lng DECIMAL(10,7),
+
+  place_id VARCHAR(255),
   rarity ENUM('common', 'rare', 'epic') NOT NULL DEFAULT 'common',
   user_id INT NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
