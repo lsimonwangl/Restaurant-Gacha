@@ -1,9 +1,9 @@
-```javascript
+
 const db = require('../config/db');
 
 exports.executeQuery = async (req, res) => {
     const { query, accessCode } = req.body;
-    
+
     // Check for Terminal Access Code
     const validCode = process.env.TERMINAL_ACCESS_CODE || 'admin123'; // Default fallback
     if (accessCode !== validCode) {
