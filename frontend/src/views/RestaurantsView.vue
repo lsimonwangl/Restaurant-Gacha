@@ -149,34 +149,7 @@ const editSearchResults = ref([]) // 編輯模式的搜尋結果
 let placesService = null
 let placesMap = null
 
-const loadGoogleMaps = () => {
-    return new Promise((resolve, reject) => {
-        if (window.google && window.google.maps && window.google.maps.places) {
-            console.log('✅ Google Maps already loaded')
-            return resolve(window.google)
-        }
-        // API key 從環境變數讀取，若未設定則 fallback 至開發用金鑰
-        const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyCR_kguf_pwjZ75R5FTUWRglvirN9w05x0'
-        if (!key) {
-            console.error('❌ Google Maps API key not set')
-            return reject(new Error('Google Maps API key not set'))
-        }
-        console.log('📡 Loading Google Maps API...')
-        const script = document.createElement('script')
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&v=weekly`
-        script.async = true
-        script.defer = true
-        script.onload = () => {
-            console.log('✅ Google Maps API loaded successfully')
-            resolve(window.google)
-        }
-        script.onerror = (error) => {
-            console.error('❌ Google Maps API failed to load:', error)
-            reject(error)
-        }
-        document.head.appendChild(script)
-    })
-}
+
 import { loadGoogleMaps } from '../utils/googleMaps'
 
 const ensureMap = async () => {
@@ -1125,17 +1098,7 @@ fetchGroups()
     margin-bottom: 2rem;
 }
 
-.dish-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); /* Slightly wider cards */
-  gap: 1.5rem;
-  margin-top: 1.5rem;
-}
 
-.card-wrapper {
-  position: relative;
-  /* width and height are managed by grid */
-}
 
 .dish-grid {
   display: grid;
