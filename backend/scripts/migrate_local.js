@@ -73,17 +73,26 @@ async function migrate() {
         await connection.query(createSavedGroups);
         console.log('✅ Table saved_groups ensured.');
 
-        // 5. Add address / lat / lng to dishes if missing
-        try {
-            await connection.query("ALTER TABLE `dishes` ADD COLUMN `address` VARCHAR(500)");
-            await connection.query("ALTER TABLE `dishes` ADD COLUMN `lat` DECIMAL(10,7)");
-            await connection.query("ALTER TABLE `dishes` ADD COLUMN `lng` DECIMAL(10,7)");
-            await connection.query("ALTER TABLE `dishes` ADD COLUMN `place_id` VARCHAR(255) NULL");
-            console.log('✅ Added address/lat/lng/place_id columns to dishes.');
-        } catch (err) {
-            // Error codes when column exists vary; just warn
-            console.log('ℹ️ address/lat/lng columns may already exist or could not be added: ' + err.message);
-        }
+        // Helper to add column safely
+        const addColumnSafe = async (table, columnDef) => {
+            try {
+                await connection.query(`ALTER TABLE \`${table}\` ADD COLUMN ${columnDef}`);
+                console.log(`✅ Added column to ${table}: ${columnDef.split(' ')[0]}`);
+            } catch (err) {
+                // ER_DUP_FIELDNAME = 1060
+                if (err.code === 'ER_DUP_FIELDNAME' || err.errno === 1060) {
+                    console.log(`ℹ️ Column already exists in ${table}: ${columnDef.split(' ')[0]}`);
+                } else {
+                    console.warn(`⚠️ Could not add column to ${table}: ${err.message}`);
+                }
+            }
+        };
+
+        // 5. Add address / lat / lng / place_id to dishes if missing
+        await addColumnSafe('dishes', '`address` VARCHAR(500)');
+        await addColumnSafe('dishes', '`lat` DECIMAL(10,7)');
+        await addColumnSafe('dishes', '`lng` DECIMAL(10,7)');
+        await addColumnSafe('dishes', '`place_id` VARCHAR(255) NULL');
 
         console.log('🎉 Migration completed successfully!');
 
