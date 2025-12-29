@@ -4,6 +4,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
+# Accept the build argument
+ARG VITE_GOOGLE_MAPS_API_KEY
+# Set it as an environment variable so Vite can pick it up
+ENV VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY
 RUN npm run build
 
 # Production Stage

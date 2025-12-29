@@ -177,6 +177,7 @@ const loadGoogleMaps = () => {
         document.head.appendChild(script)
     })
 }
+import { loadGoogleMaps } from '../utils/googleMaps'
 
 const ensureMap = async () => {
     await loadGoogleMaps()
@@ -1279,7 +1280,17 @@ fetchGroups()
     /* Removed width: 100% and border to let it flow next to buttons */
     padding-left: 1rem; /* Add visual separation */
     border-left: 1px solid rgba(255,255,255,0.2); /* Vertical divider */
-    height: 2rem; /* Align vertically with buttons if needed */
+    /* REMOVED fixed height to allow wrapping content */
+    margin-left: 0.5rem;
+}
+@media (max-width: 768px) {
+    .group-list-display {
+        border-left: none;
+        padding-left: 0;
+        margin-left: 0;
+        margin-top: 0.5rem;
+        width: 100%; /* Force new line on mobile */
+    }
 }
 
 .group-tag-display {

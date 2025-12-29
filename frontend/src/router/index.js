@@ -32,6 +32,12 @@ const router = createRouter({
             component: () => import('../views/RestaurantsView.vue'),
         },
         {
+            path: '/nearby',
+            name: 'nearby',
+            component: () => import('../views/NearbyView.vue'),
+            meta: { requiresAuth: true }
+        },
+        {
             path: '/explore',
             name: 'explore',
             component: () => import('../views/ExploreView.vue'),
