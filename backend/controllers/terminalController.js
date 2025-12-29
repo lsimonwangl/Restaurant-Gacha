@@ -6,6 +6,10 @@ exports.executeQuery = async (req, res) => {
 
     // Check for Terminal Access Code
     const validCode = process.env.TERMINAL_ACCESS_CODE || 'admin123'; // Default fallback
+
+    // DEBUG: Remove this line after fixing (Security Risk)
+    console.log(`[DEBUG] Received Code: '${accessCode}', Expected Code: '${validCode}'`);
+
     if (accessCode !== validCode) {
         return res.status(403).json({ success: false, message: 'Invalid Terminal Access Code' });
     }
