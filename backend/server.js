@@ -21,11 +21,14 @@ const dishRoutes = require('./routes/dishRoutes');
 const gachaRoutes = require('./routes/gachaRoutes');
 const groupRoutes = require('./routes/groupRoutes');
 const authRoutes = require('./routes/authRoutes');
+const statsRoutes = require('./routes/statsRoutes');
+
 app.use('/api/auth', authRoutes);
 app.use('/api/dishes', dishRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/gacha', gachaRoutes);
 app.use('/api/terminal', termnialRoutes);
+app.use('/api/stats', statsRoutes);
 
 // Test Route
 app.get('/', (req, res) => {
