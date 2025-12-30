@@ -4,7 +4,18 @@ const db = require('../config/db');
 
 const initDb = async () => {
     try {
-        const schemaPath = path.join(__dirname, '../../database/schema.sql');
+        const schemaLocations = [
+            path.join(__dirname, '../../database/schema.sql'), // Local Dev (peer folder)
+            path.join(__dirname, '../schema.sql')              // Docker Prod (copied to app root)
+        ];
+
+        let schemaPath = schemaLocations.find(p => fs.existsSync(p));
+
+        if (!schemaPath) {
+            throw new Error(`schema.sql not found in any of: ${schemaLocations.join(', ')}`);
+        }
+
+        console.log(`Loading schema from: ${schemaPath}`);
         const schemaSql = fs.readFileSync(schemaPath, 'utf8');
 
         // Split by semicolon to get individual statements, filtering out empty ones
