@@ -1,7 +1,10 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
 import { useAuthStore } from './stores/auth'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import axios from 'axios'
+
+const dailyVisits = ref(0)
 
 const authStore = useAuthStore()
 const isAuthenticated = computed(() => authStore.isAuthenticated) 
@@ -10,6 +13,12 @@ onMounted(() => {
   if (authStore.token) {
     authStore.fetchUser()
   }
+  // Record visit and get count
+  axios.post('/api/stats/visit')
+    .then(res => {
+      if(res.data.success) dailyVisits.value = res.data.count
+    })
+    .catch(err => console.error('Stats error:', err))
 })
 
 const logout = () => {
@@ -57,7 +66,7 @@ const isFullWidthPage = computed(() => ['/nearby'].includes(route.path))
   </main>
 
   <footer class="app-footer">
-    <p>Created by William Wang • v{{ version }}</p>
+    <p>Created by William Wang • v{{ version }} • 總瀏覽人數: {{ dailyVisits }}</p>
   </footer>
 </template>
 

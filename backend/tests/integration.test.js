@@ -76,7 +76,25 @@ describe('Full Integration Test (Auth + Groups)', () => {
         expect(found.name).toBe('Integration Test Group');
     });
 
-    // 5. 測試刪除群組
+    // 6. 測試新增餐廳到群組
+    it('should add dish to group', async () => {
+        // First create a dish
+        const dishRes = await request(app)
+            .post('/api/dishes')
+            .set('Authorization', `Bearer ${authToken}`)
+            .send({ name: 'Integration Dish', rarity: 'common' });
+        const dishId = dishRes.body.id;
+
+        // Add to group
+        const res = await request(app)
+            .post('/api/groups/add-dish')
+            .set('Authorization', `Bearer ${authToken}`)
+            .send({ groupId: createdGroupId, dishId: dishId });
+
+        expect(res.statusCode).toEqual(200);
+    });
+
+    // 7. 測試刪除群組
     it('should delete the group', async () => {
         const res = await request(app)
             .delete(`/api/groups/${createdGroupId}`)
@@ -85,7 +103,7 @@ describe('Full Integration Test (Auth + Groups)', () => {
         expect(res.statusCode).toEqual(200);
     });
 
-    // 6. 驗證刪除後是否真的消失
+    // 8. 驗證刪除後是否真的消失
     it('should verify group is gone', async () => {
         const res = await request(app)
             .get('/api/groups')

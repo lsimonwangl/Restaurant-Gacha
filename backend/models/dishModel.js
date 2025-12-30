@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { v7: uuidv7 } = require('uuid');
 
 class Dish {
     static async findAll(userId) {
@@ -23,13 +24,14 @@ class Dish {
     static async create(dish, userId) {
         console.log('Dish.create called with dish:', dish, 'userId:', userId);
         const { name, description, image_url, address, lat, lng, place_id, rarity } = dish;
-        console.log('Extracted values:', { name, description, image_url, address, lat, lng, place_id, rarity, userId });
-        const [result] = await db.query(
-            'INSERT INTO `dishes` (name, description, image_url, address, lat, lng, place_id, rarity, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [name, description, image_url, address || null, lat || null, lng || null, place_id || null, rarity, userId]
+        const id = uuidv7();
+        console.log('Extracted values + Generated ID:', { id, name, description, image_url, address, lat, lng, place_id, rarity, userId });
+        await db.query(
+            'INSERT INTO `dishes` (id, name, description, image_url, address, lat, lng, place_id, rarity, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, name, description, image_url, address || null, lat || null, lng || null, place_id || null, rarity, userId]
         );
-        console.log('Insert result:', result);
-        return result.insertId;
+        console.log('Insert successful, returning id:', id);
+        return id;
     }
 
     static async update(id, dish) {

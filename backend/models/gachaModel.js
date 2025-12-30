@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { v7: uuidv7 } = require('uuid');
 
 class Gacha {
     static async getDailyDrawCount(userId, connection = null) {
@@ -35,9 +36,10 @@ class Gacha {
 
     static async createDraw(userId, dishId, rarity, connection = null) {
         const queryExecutor = connection || db;
+        const id = uuidv7();
         await queryExecutor.query(
-            'INSERT INTO `draws` (user_id, dish_id, rarity) VALUES (?, ?, ?)',
-            [userId, dishId, rarity]
+            'INSERT INTO `draws` (id, user_id, dish_id, rarity) VALUES (?, ?, ?, ?)',
+            [id, userId, dishId, rarity]
         );
     }
 

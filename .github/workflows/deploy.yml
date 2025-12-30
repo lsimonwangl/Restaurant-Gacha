@@ -69,6 +69,9 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
         
+    - name: Copy Schema to Backend
+      run: cp database/schema.sql backend/schema.sql
+
     - name: Build and Push Backend
       uses: docker/build-push-action@v4
       with:

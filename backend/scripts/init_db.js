@@ -1,59 +1,41 @@
-const mysql = require('mysql2/promise');
-const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
+const db = require('../config/db');
 
-dotenv.config();
-
-const init = async () => {
+const initDb = async () => {
     try {
-        // Connect without database selected
-        const connection = await mysql.createConnection({
-            host: process.env.DB_HOST,
-            port: process.env.DB_PORT || 3306,
-            user: process.env.DB_USER,
-            password: process.env.DB_PASSWORD,
-        });
+        const schemaLocations = [
+            path.join(__dirname, '../../database/schema.sql'), // Local Dev (peer folder)
+            path.join(__dirname, '../schema.sql')              // Docker Prod (copied to app root)
+        ];
 
-        console.log('Connected to MySQL server.');
+        let schemaPath = schemaLocations.find(p => fs.existsSync(p));
 
-        // Create Database
-        await connection.query(`CREATE DATABASE IF NOT EXISTS \`${process.env.DB_NAME}\``);
-        console.log(`Database '${process.env.DB_NAME}' created or already exists.`);
+        if (!schemaPath) {
+            throw new Error(`schema.sql not found in any of: ${schemaLocations.join(', ')}`);
+        }
 
-        // Switch to Database
-        await connection.changeUser({ database: process.env.DB_NAME });
+        console.log(`Loading schema from: ${schemaPath}`);
+        const schemaSql = fs.readFileSync(schemaPath, 'utf8');
 
-        // Read Schema
-        const schemaPath = path.join(__dirname, '../../database/schema.sql');
-        const schema = fs.readFileSync(schemaPath, 'utf8');
+        // Split by semicolon to get individual statements, filtering out empty ones
+        const statements = schemaSql
+            .split(';')
+            .map(stmt => stmt.trim())
+            .filter(stmt => stmt.length > 0);
 
-        // Execute Schema - Need to split by ; for multiple statements if driver doesn't support multipleStatements by default (mysql2 does if configured, lets try connection.query with multiple enabled or split)
-        // Actually mysql2 createConnection doesn't support multipleStatements by default usually. 
-        // Let's enable it in options.
+        console.log(`Found ${statements.length} SQL statements to execute.`);
 
-        await connection.end();
+        for (const statement of statements) {
+            await db.query(statement);
+        }
 
-        const dbConnection = await mysql.createConnection({
-            host: process.env.DB_HOST,
-            port: process.env.DB_PORT || 3306,
-            user: process.env.DB_USER,
-            password: process.env.DB_PASSWORD,
-            database: process.env.DB_NAME,
-            multipleStatements: true
-        });
-
-        console.log('Executing schema...');
-        await dbConnection.query(schema);
-        console.log('Schema executed successfully.');
-
-        await dbConnection.end();
+        console.log('Database initialized successfully from schema.sql');
         process.exit(0);
-
     } catch (error) {
-        console.error('Initialization failed:', error);
+        console.error('Error initializing database:', error);
         process.exit(1);
     }
 };
 
-init();
+initDb();

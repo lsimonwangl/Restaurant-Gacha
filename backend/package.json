@@ -22,11 +22,17 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
-    "mysql2": "^3.15.3"
+    "mysql2": "^3.15.3",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "cross-env": "^10.1.0",
     "jest": "^30.2.0",
     "supertest": "^7.1.4"
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "^uuid$": "<rootDir>/tests/mocks/uuid.js"
+    }
   }
 }
