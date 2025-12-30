@@ -27,17 +27,17 @@ const handleRegister = async () => {
       
       <form @submit.prevent="handleRegister">
         <div class="form-group">
-          <label>名稱</label>
+          <label>名稱 <span class="required-asterisk">*</span></label>
           <input type="text" v-model="name" class="input-field" required placeholder="您的暱稱">
         </div>
 
         <div class="form-group">
-          <label>Email</label>
+          <label>Email <span class="required-asterisk">*</span></label>
           <input type="email" v-model="email" class="input-field" required placeholder="name@example.com">
         </div>
         
         <div class="form-group">
-          <label>密碼</label>
+          <label>密碼 <span class="required-asterisk">*</span></label>
           <input type="password" v-model="password" class="input-field" required placeholder="••••••••">
         </div>
 
@@ -76,5 +76,10 @@ const handleRegister = async () => {
   margin-bottom: 0.5rem;
   color: var(--secondary-color);
   font-size: 0.9rem;
+}
+
+.required-asterisk {
+  color: #ef4444;
+  margin-left: 4px;
 }
 </style>

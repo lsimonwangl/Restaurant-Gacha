@@ -5,6 +5,11 @@ import { computed, onMounted, ref } from 'vue'
 import axios from 'axios'
 
 const dailyVisits = ref(0)
+const isVisitExpanded = ref(false)
+
+const toggleVisitBadge = () => {
+  isVisitExpanded.value = !isVisitExpanded.value
+}
 
 const authStore = useAuthStore()
 const isAuthenticated = computed(() => authStore.isAuthenticated) 
@@ -66,8 +71,18 @@ const isFullWidthPage = computed(() => ['/nearby'].includes(route.path))
   </main>
 
   <footer class="app-footer">
-    <p>Created by William Wang • v{{ version }} • 總瀏覽人數: {{ dailyVisits }}</p>
+    <p>Created by William Wang • v{{ version }} • 資料庫系統期末專題</p>
   </footer>
+
+  <div 
+    class="visit-badge" 
+    :class="{ 'expanded': isVisitExpanded }" 
+    @click="toggleVisitBadge"
+  >
+    <span class="visit-icon">👀</span>
+    <span class="visit-text">瀏覽人數:</span>
+    <span>{{ dailyVisits }}</span>
+  </div>
 </template>
 
 <style scoped>
@@ -236,5 +251,73 @@ nav {
   font-size: 0.8rem;
   margin-top: auto; /* Push to bottom if flex column */
   border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.visit-badge {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(30, 41, 59, 0.8); /* Darker background for floating */
+  backdrop-filter: blur(8px);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  opacity: 0.8; /* Slightly transparent to not be too attention grabbing */
+  cursor: pointer;
+}
+
+.visit-badge:hover {
+  opacity: 1;
+  transform: translateY(-2px);
+  background: rgba(30, 41, 59, 0.95);
+  color: var(--text-main);
+}
+
+.visit-icon {
+  font-size: 1rem;
+}
+
+.visit-text {
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  white-space: nowrap;
+  transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55); /* Bouncy transition */
+}
+
+/* Toggle expansion on click state */
+.visit-badge.expanded .visit-text {
+  max-width: 100px;
+  opacity: 1;
+  margin-right: 4px;
+}
+
+/* Jelly Animation */
+.visit-badge:active {
+  transform: scale(0.95);
+}
+
+.visit-badge.expanded {
+  background: rgba(30, 41, 59, 0.95);
+  color: var(--text-main);
+  animation: jelly 0.6s ease-in-out both;
+}
+
+@keyframes jelly {
+  0% { transform: scale(1, 1); }
+  30% { transform: scale(1.25, 0.75); }
+  40% { transform: scale(0.75, 1.25); }
+  50% { transform: scale(1.15, 0.85); }
+  65% { transform: scale(0.95, 1.05); }
+  75% { transform: scale(1.05, 0.95); }
+  100% { transform: scale(1, 1); }
 }
 </style>
