@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { v7: uuidv7 } = require('uuid');
 
 class User {
     static async findByEmail(email) {
@@ -13,11 +14,12 @@ class User {
 
     static async create(user) {
         const { email, password, name, avatar_url } = user;
-        const [result] = await db.query(
-            'INSERT INTO `users` (email, password, name, avatar_url) VALUES (?, ?, ?, ?)',
-            [email, password, name, avatar_url]
+        const id = uuidv7();
+        await db.query(
+            'INSERT INTO `users` (id, email, password, name, avatar_url) VALUES (?, ?, ?, ?, ?)',
+            [id, email, password, name, avatar_url]
         );
-        return result.insertId;
+        return id;
     }
 
     static async findByIdWithPassword(id) {

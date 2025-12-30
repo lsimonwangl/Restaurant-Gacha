@@ -1,5 +1,6 @@
 const db = require('./config/db');
 const bcrypt = require('bcryptjs');
+const { v7: uuidv7 } = require('uuid');
 
 const seed = async () => {
     try {
@@ -14,19 +15,19 @@ const seed = async () => {
         await db.query('DELETE FROM users');
 
         // Create Admin User
+        const adminId = uuidv7();
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash('123456', salt);
         await db.query(
-            'INSERT INTO users (email, password, name, avatar_url) VALUES (?, ?, ?, ?)',
-            ['admin@test.com', hashedPassword, 'Admin User', '']
+            'INSERT INTO users (id, email, password, name, avatar_url) VALUES (?, ?, ?, ?, ?)',
+            [adminId, 'admin@test.com', hashedPassword, 'Admin User', '']
         );
 
         // Create Groups
-        const [g1] = await db.query('INSERT INTO `groups` (name, slug, description) VALUES (?, ?, ?)', ['學校附近', 'school', 'NTU nearby food']);
-        const [g2] = await db.query('INSERT INTO `groups` (name, slug, description) VALUES (?, ?, ?)', ['家裡附近', 'home', 'UberEats delivery range']);
-
-        const schoolId = g1.insertId;
-        const homeId = g2.insertId;
+        const schoolId = uuidv7();
+        const homeId = uuidv7();
+        await db.query('INSERT INTO `groups` (id, name, slug, description, user_id) VALUES (?, ?, ?, ?, ?)', [schoolId, '學校附近', 'school', 'NTU nearby food', adminId]);
+        await db.query('INSERT INTO `groups` (id, name, slug, description, user_id) VALUES (?, ?, ?, ?, ?)', [homeId, '家裡附近', 'home', 'UberEats delivery range', adminId]);
 
         // Create Dishes
         const dishes = [
@@ -42,13 +43,15 @@ const seed = async () => {
         ];
 
         for (const d of dishes) {
-            const [res] = await db.query(
-                'INSERT INTO dishes (name, description, rarity) VALUES (?, ?, ?)',
-                [d.name, 'Delicious food', d.rarity]
+            const dishId = uuidv7();
+            await db.query(
+                'INSERT INTO dishes (id, name, description, rarity, user_id) VALUES (?, ?, ?, ?, ?)',
+                [dishId, d.name, 'Delicious food', d.rarity, adminId]
             );
-            const dishId = res.insertId;
+
             for (const gid of d.groups) {
-                await db.query('INSERT INTO dish_groups (dish_id, group_id) VALUES (?, ?)', [dishId, gid]);
+                const relationId = uuidv7();
+                await db.query('INSERT INTO dish_groups (id, dish_id, group_id) VALUES (?, ?, ?)', [relationId, dishId, gid]);
             }
         }
 

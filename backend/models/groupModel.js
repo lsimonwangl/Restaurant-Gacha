@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { v7: uuidv7 } = require('uuid');
 
 class Group {
     static async findAll(userId) {
@@ -92,11 +93,12 @@ class Group {
 
     static async create(group, userId) {
         const { name, slug, description, is_public = false } = group;
-        const [result] = await db.query(
-            'INSERT INTO `groups` (name, slug, description, is_public, user_id) VALUES (?, ?, ?, ?, ?)',
-            [name, slug, description, is_public, userId]
+        const id = uuidv7();
+        await db.query(
+            'INSERT INTO `groups` (id, name, slug, description, is_public, user_id) VALUES (?, ?, ?, ?, ?, ?)',
+            [id, name, slug, description, is_public, userId]
         );
-        return result.insertId;
+        return id;
     }
 
     static async update(id, data) {
@@ -125,7 +127,11 @@ class Group {
     }
 
     static async save(userId, groupId) {
-        await db.query('INSERT IGNORE INTO `saved_groups` (user_id, group_id) VALUES (?, ?)', [userId, groupId]);
+        const id = uuidv7();
+        // IGNORE prevents error on duplicate, but if not duplicate, we insert new row with UUID
+        // However, with IGNORE and UUID PK, if unique key (user_id, group_id) violation occurs, it's ignored.
+        // If not, we insert.
+        await db.query('INSERT IGNORE INTO `saved_groups` (id, user_id, group_id) VALUES (?, ?, ?)', [id, userId, groupId]);
     }
 
     static async unsave(userId, groupId) {
@@ -133,7 +139,8 @@ class Group {
     }
 
     static async addDish(groupId, dishId) {
-        await db.query('INSERT IGNORE INTO `dish_groups` (group_id, dish_id) VALUES (?, ?)', [groupId, dishId]);
+        const id = uuidv7();
+        await db.query('INSERT IGNORE INTO `dish_groups` (id, group_id, dish_id) VALUES (?, ?, ?)', [id, groupId, dishId]);
     }
 
     // Get dishes in a group, optionally filtered by rarity
