@@ -5,7 +5,7 @@ const db = require('../config/db');
 // Mock Auth Middleware for testing
 jest.mock('../middleware/authMiddleware', () => ({
     protect: (req, res, next) => {
-        req.user = { id: 1 }; // Mock user ID 1
+        req.user = { id: '00000000-0000-0000-0000-000000000001' }; // Mock user UUID
         next();
     }
 }));
