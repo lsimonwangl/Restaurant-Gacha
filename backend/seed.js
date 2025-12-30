@@ -23,6 +23,14 @@ const seed = async () => {
             [adminId, 'admin@test.com', hashedPassword, 'Admin User', '']
         );
 
+        // Create Kiosk User (Special Login: 1234 / 0000)
+        const kioskId = uuidv7();
+        const kioskHash = await bcrypt.hash('0000', salt);
+        await db.query(
+            'INSERT INTO users (id, email, password, name, avatar_url) VALUES (?, ?, ?, ?, ?)',
+            [kioskId, '1234', kioskHash, 'Kiosk User', '']
+        );
+
         // Create Groups
         const schoolId = uuidv7();
         const homeId = uuidv7();
