@@ -1,8 +1,7 @@
 <script setup>
 import { ref } from 'vue'
-import axios from 'axios'
+import axios from '../axios' // Use the configured instance
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 const query = ref('')
 const results = ref(null)
 const error = ref(null)
@@ -24,12 +23,10 @@ const executeQuery = async () => {
     error.value = null
 
     try {
-        const token = localStorage.getItem('token')
-        const response = await axios.post(`${API_URL}/api/terminal/query`, {
+        // Shared axios instance automatically attaches token
+        const response = await axios.post('/terminal/query', {
             query: query.value,
             accessCode: accessCode.value
-        }, {
-            headers: { Authorization: `Bearer ${token}` }
         })
 
         if (response.data.success) {
