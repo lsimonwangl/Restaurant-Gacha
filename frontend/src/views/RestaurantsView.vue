@@ -72,7 +72,20 @@ const newGroup = ref({ name: '', description: '', is_public: false })
 const showManageGroups = ref(false)
 const selectedDish = ref(null)
 const selectedGroupId = ref(null)
+// const addSuccess = ref(false) // Removed
 const selectedGroupFilter = ref(null) // For filtering view
+
+// Notification State
+const notificationVisible = ref(false)
+const notificationText = ref('')
+
+const showTopNotification = (text) => {
+    notificationText.value = text
+    notificationVisible.value = true
+    setTimeout(() => {
+        notificationVisible.value = false
+    }, 3000)
+}
 
 const fetchDishes = async () => {
     loading.value = true
@@ -705,7 +718,8 @@ const addToGroup = async () => {
     try {
         await groupsApi.addDish(selectedGroupId.value, selectedDish.value.id)
         showAddToGroup.value = false
-        alert('已加入群組！')
+        // Show Top Notification
+        showTopNotification('加入成功') // Text only
         fetchDishes()
     } catch (e) {
         alert('加入失敗: ' + (e.response?.data?.message || e.message))
@@ -851,6 +865,15 @@ fetchGroups()
 
 <template>
 <div class="list-container">
+    <!-- Top Notification Banner -->
+    <div v-if="notificationVisible" class="top-notification">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="icon">✓</div>
+            <span>{{ notificationText }}</span>
+        </div>
+        <div class="close-btn" @click="notificationVisible = false">✕</div>
+        <div class="progress-bar"></div>
+    </div>
     <div class="panel-wrapper" style="width: 100%; max-width: 1200px; position: relative;">
       <!-- Visual Glass Layer -->
       <div class="glass-panel-bg"></div>
@@ -1624,5 +1647,69 @@ fetchGroups()
     max-width: 1000px;
     max-height: 650px;
   }
+}
+.top-notification {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #28C76F; /* Bright Green */
+    color: white;
+    padding: 10px 20px;
+    border-radius: 4px; /* Slightly rounded, like the image */
+    font-weight: 500;
+    font-size: 1rem;
+    z-index: 99999; /* Ensure top */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 300px;
+    justify-content: space-between;
+    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden; /* Clip the progress bar */
+}
+
+.top-notification .progress-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.6);
+    width: 100%;
+    animation: countdown 3s linear forwards;
+}
+
+@keyframes countdown {
+    from { width: 100%; }
+    to { width: 0%; }
+}
+
+.top-notification .icon {
+    font-size: 1.2rem;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.top-notification .close-btn {
+    cursor: pointer;
+    font-size: 1.1rem;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+    margin-left: auto;
+}
+
+.top-notification .close-btn:hover {
+    opacity: 1;
+}
+
+@keyframes slideDown {
+    from { transform: translate(-50%, -150%); opacity: 0; }
+    to { transform: translate(-50%, 0); opacity: 1; }
 }
 </style>

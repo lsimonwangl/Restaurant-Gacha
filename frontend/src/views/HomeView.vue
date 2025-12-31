@@ -169,7 +169,7 @@ onMounted(async () => {
           
           <!-- Quick Draw Settings -->
           <div class="quick-draw-settings" v-if="userGroups.length > 0">
-              <span class="settings-label">預設抽卡群組:</span>
+              <span class="settings-label">抽卡群組:</span>
               <select v-model="defaultGroupId" @change="savePreference" class="group-select">
                   <option v-for="g in userGroups" :key="g.id" :value="g.id">{{ g.name }}</option>
               </select>
@@ -180,10 +180,6 @@ onMounted(async () => {
       <div class="glass-panel stat-card fortune-card">
         <div class="card-header-row">
             <h3>🔥 今日運勢</h3>
-            <!-- Quick Draw Button -->
-            <button v-if="lastDraw" @click="quickDraw" :disabled="drawing" class="btn-icon-small" title="再抽一次">
-                {{ drawing ? '⏳' : '🔄' }}
-            </button>
         </div>
         
         <div v-if="lastDraw" class="fortune-content">
