@@ -328,12 +328,12 @@ watch(() => props.modelValue, (newVal) => {
 }
 
 .click-outside-overlay {
-    position: absolute;
+    position: fixed;
     inset: 0;
     z-index: 50;
-    background: rgba(0,0,0,0.4); 
+    background: rgba(0,0,0,0.6); 
     backdrop-filter: blur(2px);
-    border-radius: 12px;
+    border-radius: 0; /* Full screen, no radius needed */
     cursor: default;
 }
 .full-width { width: 100%; }
