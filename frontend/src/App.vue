@@ -71,7 +71,7 @@ const isFullWidthPage = computed(() => ['/nearby'].includes(route.path))
   </main>
 
   <footer class="app-footer">
-    <p>Created by William Wang • v{{ version }} • 資料庫系統期末專題</p>
+    <p>隨時抽-餐廳抽選系統 • v{{ version }} • 資料庫系統期末專題</p>
   </footer>
 
   <div 
