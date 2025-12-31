@@ -79,8 +79,11 @@ const selectedGroupFilter = ref(null) // For filtering view
 const notificationVisible = ref(false)
 const notificationText = ref('')
 
-const showTopNotification = (text) => {
+const notificationType = ref('success') // 'success' or 'error'
+
+const showTopNotification = (text, type = 'success') => {
     notificationText.value = text
+    notificationType.value = type
     notificationVisible.value = true
     setTimeout(() => {
         notificationVisible.value = false
@@ -137,7 +140,7 @@ const filterByGroup = async (group) => {
         
         dishes.value = dishesData
     } catch(e) {
-        alert('無法取得群組餐廳')
+        showTopNotification('❌ 無法取得群組餐廳', 'error')
     } finally {
         loading.value = false
     }
@@ -263,6 +266,90 @@ const updateDishData = async (dish) => {
     }
 }
 
+const savePlaceDetailsToDb = async (dish, detail) => {
+    try {
+        const formData = new FormData()
+        
+        // 1. Calculate Rarity based on Rating (Frontend Logic to match Backend)
+        let newRarity = 'common'
+        if (detail.rating) {
+            const r = parseFloat(detail.rating)
+            if (r >= 4.5) newRarity = 'legend'
+            else if (r >= 4.0) newRarity = 'epic'
+            else if (r >= 3.5) newRarity = 'rare'
+        }
+        // Use existing rarity if no rating update? 
+        // Logic: If Google update happens, we usually trust Google rating for rarity.
+        // But if detail.rating is missing, keep old rarity.
+        if (!detail.rating && dish.rarity) newRarity = dish.rarity
+        
+        formData.append('rarity', newRarity)
+
+        // 2. Preserve existing fields to avoid overwriting with NULL
+        formData.append('description', dish.description || '')
+        if (dish.image_url) formData.append('image_url', dish.image_url)
+        formData.append('name', dish.name || '') // Ensure name is sent even if not in detail
+        
+        // Critical: Preserve place_id!
+        if (dish.place_id) formData.append('place_id', dish.place_id)
+
+        // 3. Update fields with Google data (Fall back to existing if missing)
+        formData.append('rating', detail.rating || '') // Rating usually comes from Google
+        formData.append('review_count', detail.reviewCount || 0)
+        formData.append('phone', detail.phone || '')
+        formData.append('opening_hours', detail.openingHours ? JSON.stringify(detail.openingHours) : '')
+        
+        // Critical: Address & Location (Prefer Google, fallback to existing to prevent NULL)
+        const finalAddress = detail.address || dish.address
+        if (finalAddress) formData.append('address', finalAddress)
+        
+        const finalLat = detail.location ? detail.location.lat() : dish.lat
+        const finalLng = detail.location ? detail.location.lng() : dish.lng
+        
+        if (finalLat !== undefined && finalLat !== null) formData.append('lat', finalLat)
+        if (finalLng !== undefined && finalLng !== null) formData.append('lng', finalLng)
+
+        // If Google name exists, overwrite the preserved name
+        if(detail.name) formData.set('name', detail.name) // Use set to overwrite if appended above
+        
+        // Debug Log
+        console.log('📦 Updating Dish:', dish.name)
+        for (let [key, value] of formData.entries()) {
+             console.log(` - ${key}:`, value)
+        }
+
+        const res = await dishesApi.update(dish.id, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        })
+        
+        // Update local object immediately to reflect changes in UI
+        Object.assign(dish, {
+            rating: detail.rating,
+            review_count: detail.reviewCount,
+            phone: detail.phone,
+            opening_hours: detail.openingHours ? JSON.stringify(detail.openingHours) : null,
+            address: detail.address,
+            lat: detail.location?.lat(),
+            lng: detail.location?.lng(),
+            rarity: newRarity, // Update local rarity too!
+            // name and description preserved/updated automatically if we refreshed list, 
+            // but for UI responsiveness we update what changed.
+            // If name changed from Google:
+            name: detail.name || dish.name
+        })
+        
+        return true
+    } catch (e) {
+        console.error('Save to DB failed:', e)
+        // Show specific error if possible, but this function returns boolean.
+        // Let's log specifically so we can debug if it fails again.
+        if (e.response && e.response.data) {
+             console.error('Backend validation errors:', e.response.data.errors || e.response.data)
+        }
+        throw e
+    }
+}
+
 const showPlaceOnPanel = async (dish) => {
     placeDetail.value = null
     infoPanelOpen.value = true
@@ -349,20 +436,21 @@ const updateAllRestaurants = async () => {
     }
     
     isUpdatingAll.value = false
-    alert(`更新完成！成功更新 ${successCount} / ${targets.length} 間餐廳。`)
+    isUpdatingAll.value = false
+    showTopNotification(`✅ 更新完成！成功更新 ${successCount} / ${targets.length} 間餐廳。`)
     fetchDishes() // Refresh list to show new data
 }
 
 const refreshPlaceInfo = async (dish) => {
-    if (!dish.place_id) return alert('此餐廳沒有連結 Google 地點，無法更新')
+    if (!dish.place_id) return showTopNotification('❌ 此餐廳沒有連結 Google 地點，無法更新', 'error')
     
     const success = await updateDishData(dish)
     if (success) {
-        alert('已更新最新資訊！')
+        showTopNotification('✅ 已更新最新資訊！')
         // Refresh current list item manually or re-fetch
         fetchDishes()
     } else {
-        alert('更新失敗，請稍後再試')
+        showTopNotification('❌ 更新失敗，請稍後再試', 'error')
     }
 }
 
@@ -385,7 +473,7 @@ const initPlacesService = async () => {
 
 const geocodeAddress = async (address) => {
     if (!address || address.trim().length === 0) {
-        alert('請輸入地址')
+        showTopNotification('請輸入地址', 'error')
         return
     }
     
@@ -468,7 +556,7 @@ const onEditAddressInput = () => {
 
 const refetchPlaceId = async () => {
     if (!editDishData.value.name || !editDishData.value.address) {
-        alert('請確保餐廳名稱和地址已填寫')
+        showTopNotification('請確保餐廳名稱和地址已填寫', 'error')
         return
     }
     
@@ -498,17 +586,17 @@ const refetchPlaceId = async () => {
                     // 使用 nextTick 確保 DOM 更新後再顯示 alert
                     nextTick(() => {
                         console.log('🔄 nextTick 執行，列表應該已渲染')
-                        alert(`⚠️ 地址不完整（缺少門牌號碼）\n\n已找到 ${results.length} 家附近餐廳，請從下方列表中選擇正確的餐廳`)
+                        showTopNotification(`⚠️ 地址不完整，請從列表中選擇`)
                     })
                 } else {
                     console.warn('❌ 搜尋狀態:', status, '結果數量:', results?.length || 0)
                     editSearchResults.value = []
-                    alert('❌ 找不到附近餐廳，請輸入完整地址\n例如：台灣桃園市八德區中華路277號')
+                    showTopNotification('❌ 找不到附近餐廳，請輸入完整地址', 'error')
                 }
             })
         } catch (e) {
             console.error('❌ 搜尋失敗:', e)
-            alert('❌ 搜尋失敗，請檢查網路連線')
+            showTopNotification('❌ 搜尋失敗，請檢查網路連線', 'error')
         }
         return
     }
@@ -526,11 +614,11 @@ const refetchPlaceId = async () => {
         }
         editDishData.value.address = detail.address || editDishData.value.address
         console.log('✅ 找到餐廳資訊:', detail.name, detail.placeId)
-        alert('✅ 已找到餐廳資訊，儲存後將顯示完整詳情')
+        showTopNotification('✅ 已找到餐廳資訊，儲存後將顯示完整詳情')
         editSearchResults.value = [] // 清空搜尋結果
     } catch (e) {
         console.warn('❌ 搜尋失敗:', e)
-        alert('❌ 找不到餐廳資訊，請確認名稱和地址正確')
+        showTopNotification('❌ 找不到餐廳資訊，請確認名稱和地址正確', 'error')
     }
 }
 
@@ -719,10 +807,10 @@ const addToGroup = async () => {
         await groupsApi.addDish(selectedGroupId.value, selectedDish.value.id)
         showAddToGroup.value = false
         // Show Top Notification
-        showTopNotification('加入成功') // Text only
+        showTopNotification('✅ 加入成功') // Text only
         fetchDishes()
     } catch (e) {
-        alert('加入失敗: ' + (e.response?.data?.message || e.message))
+        showTopNotification('❌ 加入失敗: ' + (e.response?.data?.message || e.message), 'error')
     }
 }
 
@@ -731,8 +819,9 @@ const deleteDish = async(dish) => {
     try {
         await dishesApi.delete(dish.id);
         fetchDishes(); // Refresh list
+        showTopNotification('🗑️ 已刪除餐廳')
     } catch (e) {
-        alert('刪除失敗: ' + (e.response?.data?.message || e.message));
+        showTopNotification('❌ 刪除失敗: ' + (e.response?.data?.message || e.message), 'error')
     }
 }
 
@@ -794,16 +883,16 @@ const openEditGroup = (group) => {
 }
 
 const updateGroup = async () => {
-    if (!editGroupData.value.name) return alert('請輸入名稱')
+    if (!editGroupData.value.name) return showTopNotification('請輸入名稱', 'error')
     try {
         await groupsApi.update(editGroupData.value.id, editGroupData.value)
         showEditGroup.value = false
         // Update local list
         const idx = groups.value.findIndex(g => g.id === editGroupData.value.id)
         if (idx !== -1) groups.value[idx] = { ...groups.value[idx], ...editGroupData.value }
-        alert('群組已更新')
+        showTopNotification('✅ 群組已更新')
     } catch(e) {
-        alert('更新失敗: ' + (e.response?.data?.message || e.message))
+        showTopNotification('❌ 更新失敗: ' + (e.response?.data?.message || e.message), 'error')
     }
 }
 
@@ -813,8 +902,9 @@ const deleteGroup = async (group) => {
         await groupsApi.delete(group.id)
         groups.value = groups.value.filter(g => g.id !== group.id)
         if (selectedGroupFilter.value === group.id) selectedGroupFilter.value = null
+        showTopNotification('🗑️ 已刪除群組')
     } catch(e) {
-        alert('刪除失敗: ' + (e.response?.data?.message || e.message))
+        showTopNotification('❌ 刪除失敗: ' + (e.response?.data?.message || e.message), 'error')
     }
 }
 
@@ -830,7 +920,7 @@ const handleEditFileUpload = (event) => {
 }
 
 const updateDish = async () => {
-    if (!editDishData.value.name) return alert('請輸入名稱')
+    if (!editDishData.value.name) return showTopNotification('請輸入名稱', 'error')
     
     uploading.value = true
     try {
@@ -851,9 +941,11 @@ const updateDish = async () => {
         })
         
         showEditDish.value = false
+        showEditDish.value = false
         fetchDishes()
+        showTopNotification('✅ 餐廳已更新')
     } catch (e) {
-        alert('更新失敗: ' + (e.response?.data?.message || e.message))
+        showTopNotification('❌ 更新失敗: ' + (e.response?.data?.message || e.message), 'error')
     } finally {
         uploading.value = false
     }
@@ -866,9 +958,9 @@ fetchGroups()
 <template>
 <div class="list-container">
     <!-- Top Notification Banner -->
-    <div v-if="notificationVisible" class="top-notification">
+    <div v-if="notificationVisible" class="top-notification" :class="notificationType">
         <div style="display: flex; align-items: center; gap: 8px;">
-            <div class="icon">✓</div>
+            <div class="icon">{{ notificationType === 'success' ? '✓' : '✕' }}</div>
             <span>{{ notificationText }}</span>
         </div>
         <div class="close-btn" @click="notificationVisible = false">✕</div>
@@ -1653,7 +1745,7 @@ fetchGroups()
     top: 24px;
     left: 50%;
     transform: translateX(-50%);
-    background: #28C76F; /* Bright Green */
+    background: #28C76F; /* Default Success Green */
     color: white;
     padding: 10px 20px;
     border-radius: 4px; /* Slightly rounded, like the image */
@@ -1683,6 +1775,10 @@ fetchGroups()
 @keyframes countdown {
     from { width: 100%; }
     to { width: 0%; }
+}
+
+.top-notification.error {
+    background: #EA5455; /* Red for Error */
 }
 
 .top-notification .icon {
