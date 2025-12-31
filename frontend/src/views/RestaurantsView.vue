@@ -67,7 +67,7 @@ const addDistancesToDishes = (dishesArray) => {
 const showCreateDish = ref(false)
 const showCreateGroup = ref(false)
 const showAddToGroup = ref(false)
-const newDish = ref({ name: '', description: '', rarity: 'common', address: '', lat: null, lng: null, place_id: null })
+const newDish = ref({ name: '', description: '', rarity: 'common', address: '', lat: null, lng: null, place_id: null, image_url: null })
 const newGroup = ref({ name: '', description: '', is_public: false })
 const showManageGroups = ref(false)
 const selectedDish = ref(null)
@@ -222,17 +222,23 @@ const showPlaceOnPanel = async (dish) => {
     placeDetail.value = {
         name: dish.name,
         address: dish.address,
-        phone: '',
-        rating: null,
-        reviewCount: null,
-        openingHours: null,
+        phone: dish.phone || '',
+        rating: dish.rating || null,
+        reviewCount: dish.review_count || null,
+        openingHours: dish.opening_hours ? JSON.parse(dish.opening_hours) : null,
         photoUrl: dish.image_url || '',
+        placeId: dish.place_id,
+        id: dish.id
     }
 
     let locationFromDetail = null
 
+    // [Smart Cache Check]
+    // If we have cached details (phone/hours), use them and skip API call
+    const hasCachedDetails = dish.phone || dish.opening_hours || dish.rating;
+    
     // 如果有 place_id，優先使用 getDetails 取得精準位置與資訊
-    if (dish.place_id) {
+    if (dish.place_id && !hasCachedDetails) {
         try {
             await initPlacesService()
             const detail = await new Promise((resolve, reject) => {
@@ -264,10 +270,17 @@ const showPlaceOnPanel = async (dish) => {
                 rating: detail.rating || null,
                 reviewCount: detail.reviewCount || null,
                 openingHours: detail.openingHours || null,
-                photoUrl: detail.photoUrl || dish.image_url || '',
+                photoUrl: dish.image_url || detail.photoUrl || '',
+                placeId: dish.place_id,
+                id: dish.id
             }
 
             locationFromDetail = detail.location || null
+            locationFromDetail = detail.location || null
+            
+            // Background Save (Lazy Update)
+            savePlaceDetailsToDb(dish, detail)
+            
         } catch (e) {
             console.warn('查詢 place_id 失敗，改用基本資料', e)
         }
@@ -280,6 +293,7 @@ const showPlaceOnPanel = async (dish) => {
 
     if (targetLocation) {
         await ensureMap()
+        await nextTick() // Ensure map container is ready
         map.setCenter(targetLocation)
         map.setZoom(16)
         if (!marker) {
@@ -290,6 +304,61 @@ const showPlaceOnPanel = async (dish) => {
         marker.setPosition(targetLocation)
         marker.setTitle(placeDetail.value.name)
     }
+}
+
+const savePlaceDetailsToDb = async (dish, detail) => {
+    // Only save if we have new meaningful info
+    if (!detail.rating && !detail.phone && !detail.openingHours) return
+
+    console.log('🔄 Background saving details for:', dish.name)
+    try {
+        const formData = new FormData()
+        // Must include ALL existing fields to prevent overwriting with NULL
+        formData.append('name', dish.name)
+        formData.append('rarity', dish.rarity)
+        formData.append('description', dish.description || '')
+        formData.append('image_url', dish.image_url || '')
+        
+        // Critical: Preserve Geo & ID
+        if (dish.lat) formData.append('lat', dish.lat)
+        if (dish.lng) formData.append('lng', dish.lng)
+        if (dish.place_id) formData.append('place_id', dish.place_id)
+        
+        // New Fields
+        if (detail.rating) formData.append('rating', detail.rating)
+        if (detail.reviewCount) formData.append('review_count', detail.reviewCount)
+        if (detail.phone) formData.append('phone', detail.phone)
+        if (detail.openingHours) formData.append('opening_hours', JSON.stringify(detail.openingHours))
+
+        // Don't overwrite image_url unless we want to... let's keep it safe and NOT overwrite.
+        // But if detail has better address?
+        if (detail.address) {
+             formData.append('address', detail.address)
+        } else {
+             formData.append('address', dish.address || '')
+        }
+
+        const res = await dishesApi.update(dish.id, formData)
+        
+        // Update local object to reflect saved state (so next time we use cache)
+        const idx = dishes.value.findIndex(d => d.id === dish.id)
+        if (idx !== -1) {
+            dishes.value[idx] = { ...dishes.value[idx], ...res.data }
+        }
+        console.log('✅ Details saved to DB')
+    } catch (e) {
+        console.error('❌ Failed to save background details:', e)
+    }
+}
+
+const refreshPlaceInfo = async (dish) => {
+    if (!dish.place_id) return alert('此餐廳沒有連結 Google 地點，無法更新')
+    
+    // Force clear cache-like check in showPlaceOnPanel (actually we just bypass logic)
+    // We can just reuse the fetch logic.
+    const tempDish = { ...dish, phone: null, opening_hours: null, rating: null } // Trick to force fetch
+    await showPlaceOnPanel(tempDish) 
+    alert('已更新最新資訊！')
 }
 
 const initPlacesService = async () => {
@@ -526,6 +595,13 @@ const selectPlace = async (place) => {
             newDish.value.lat = place.geometry.location.lat()
             newDish.value.lng = place.geometry.location.lng()
         }
+
+        // Capture Photo URL
+        if (place.photos && place.photos.length > 0) {
+            newDish.value.image_url = place.photos[0].getUrl({ maxWidth: 800 });
+        } else {
+            newDish.value.image_url = null;
+        }
         
         // Clear search results after selection
         searchResults.value = []
@@ -565,7 +641,7 @@ const createDish = async () => {
     if (duplicate) {
         alert(`⚠️ 已經有此餐廳了\n名稱: ${duplicate.name}\n地址: ${duplicate.address || '未設定'}`)
         // 清除表單
-        newDish.value = { name: '', description: '', rarity: 'common', address: '', lat: null, lng: null, place_id: null }
+        newDish.value = { name: '', description: '', rarity: 'common', address: '', lat: null, lng: null, place_id: null, image_url: null }
         selectedFile.value = null
         searchQuery.value = ''
         searchResults.value = []
@@ -585,6 +661,8 @@ const createDish = async () => {
         if (newDish.value.place_id) formData.append('place_id', newDish.value.place_id)
         if (selectedFile.value) {
             formData.append('image', selectedFile.value)
+        } else if (newDish.value.image_url) {
+            formData.append('image_url', newDish.value.image_url)
         }
 
         await dishesApi.create(formData, {
@@ -592,7 +670,7 @@ const createDish = async () => {
         })
         
         showCreateDish.value = false
-        newDish.value = { name: '', description: '', rarity: 'common', address: '', lat: null, lng: null, place_id: null }
+        newDish.value = { name: '', description: '', rarity: 'common', address: '', lat: null, lng: null, place_id: null, image_url: null }
         selectedFile.value = null
         fetchDishes()
     } catch (e) {
@@ -849,7 +927,16 @@ fetchGroups()
                             </div>
                             <div v-else class="info-photo-placeholder">🍽️</div>
                             
-                            <h3 class="info-title">{{ placeDetail.name }}</h3>
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <h3 class="info-title">{{ placeDetail.name }}</h3>
+                                <button v-if="placeDetail.placeId" 
+                                        @click="refreshPlaceInfo(dishes.find(d=>d.id===placeDetail.id))" 
+                                        class="btn-small" 
+                                        title="從 Google 更新最新資訊"
+                                        style="font-size: 0.8rem; padding: 2px 6px;">
+                                    🔄 更新
+                                </button>
+                            </div>
                             
                             <div class="info-rating" v-if="placeDetail.rating">
                                 <span class="stars">⭐ {{ placeDetail.rating }}</span>

@@ -69,30 +69,57 @@ const saveToDatabase = async (place) => {
 
     saving.value = true
     try {
+        // 1. Fetch detailed info first to ensure we have phone/hours
+        const detailedPlace = await new Promise((resolve) => {
+             if (!placesService) return resolve(place)
+             
+             placesService.getDetails({
+                 placeId: place.place_id,
+                 fields: ['name', 'rating', 'user_ratings_total', 'formatted_address', 'formatted_phone_number', 'opening_hours', 'photos', 'geometry']
+             }, (result, status) => {
+                 if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+                     resolve(result)
+                 } else {
+                     console.warn('Failed to fetch details for save, using basic info', status)
+                     resolve(place)
+                 }
+             })
+        })
+
         const formData = new FormData()
-        formData.append('name', place.name)
-        formData.append('address', place.vicinity || '')
-        formData.append('description', `Google 評分: ${place.rating || 'N/A'}`)
-        if (place.geometry && place.geometry.location) {
-            formData.append('lat', place.geometry.location.lat())
-            formData.append('lng', place.geometry.location.lng())
+        formData.append('name', detailedPlace.name)
+        formData.append('address', detailedPlace.formatted_address || detailedPlace.vicinity || '')
+        formData.append('description', `Google 評分: ${detailedPlace.rating || 'N/A'}`)
+        formData.append('place_id', place.place_id) // Important for future updates
+        
+        if (detailedPlace.geometry && detailedPlace.geometry.location) {
+            formData.append('lat', detailedPlace.geometry.location.lat())
+            formData.append('lng', detailedPlace.geometry.location.lng())
+        }
+
+        // New Fields
+        if (detailedPlace.rating) formData.append('rating', detailedPlace.rating)
+        if (detailedPlace.user_ratings_total) formData.append('review_count', detailedPlace.user_ratings_total)
+        if (detailedPlace.formatted_phone_number) formData.append('phone', detailedPlace.formatted_phone_number)
+        if (detailedPlace.opening_hours && detailedPlace.opening_hours.weekday_text) {
+             formData.append('opening_hours', JSON.stringify(detailedPlace.opening_hours.weekday_text))
         }
 
         // Auto Rarity Logic
-        const rating = place.rating || 0
+        const rating = detailedPlace.rating || 0
         let rarity = 'common'
         if (rating >= 4.5) rarity = 'epic' // SSR
         else if (rating >= 4.0) rarity = 'rare' // SR
         formData.append('rarity', rarity)
 
         // Image URL
-        if (place.photos && place.photos.length > 0) {
-             const photoUrl = place.photos[0].getUrl({ maxWidth: 400 })
+        if (detailedPlace.photos && detailedPlace.photos.length > 0) {
+             const photoUrl = detailedPlace.photos[0].getUrl({ maxWidth: 800 })
              formData.append('image_url', photoUrl)
         }
 
         await dishesApi.create(formData, {
-            headers: { 'Content-Type': 'multipart/form-Type' }
+            headers: { 'Content-Type': 'multipart/form-data' }
         })
         
         alert('✅ 匯入成功！')

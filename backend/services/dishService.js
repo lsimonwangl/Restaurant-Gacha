@@ -78,7 +78,11 @@ class DishService {
             place_id: dishData.place_id || null,
             lat: dishData.lat || null,
             lng: dishData.lng || null,
-            address: dishData.address || null
+            address: dishData.address || null,
+            rating: dishData.rating !== undefined ? dishData.rating : dish.rating,
+            review_count: dishData.review_count !== undefined ? dishData.review_count : dish.review_count,
+            phone: dishData.phone !== undefined ? dishData.phone : dish.phone,
+            opening_hours: dishData.opening_hours !== undefined ? dishData.opening_hours : dish.opening_hours
         };
 
         await Dish.update(id, updateData);
@@ -116,7 +120,11 @@ class DishService {
             address: sourceDish.address,
             lat: sourceDish.lat,
             lng: sourceDish.lng,
-            place_id: sourceDish.place_id
+            place_id: sourceDish.place_id,
+            rating: sourceDish.rating,
+            review_count: sourceDish.review_count,
+            phone: sourceDish.phone,
+            opening_hours: sourceDish.opening_hours
         }, userId);
 
         return await Dish.findById(newDishId);
@@ -138,7 +146,11 @@ class DishService {
                 address: dish.address,
                 lat: dish.lat,
                 lng: dish.lng,
-                place_id: dish.place_id
+                place_id: dish.place_id,
+                rating: dish.rating,
+                review_count: dish.review_count,
+                phone: dish.phone,
+                opening_hours: dish.opening_hours
             }, userId);
             count++;
         }

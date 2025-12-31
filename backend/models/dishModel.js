@@ -23,22 +23,22 @@ class Dish {
 
     static async create(dish, userId) {
         console.log('Dish.create called with dish:', dish, 'userId:', userId);
-        const { name, description, image_url, address, lat, lng, place_id, rarity } = dish;
+        const { name, description, image_url, address, lat, lng, place_id, rarity, rating, review_count, phone, opening_hours } = dish;
         const id = uuidv7();
         console.log('Extracted values + Generated ID:', { id, name, description, image_url, address, lat, lng, place_id, rarity, userId });
         await db.query(
-            'INSERT INTO `dishes` (id, name, description, image_url, address, lat, lng, place_id, rarity, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [id, name, description, image_url, address || null, lat || null, lng || null, place_id || null, rarity, userId]
+            'INSERT INTO `dishes` (id, name, description, image_url, address, lat, lng, place_id, rarity, user_id, rating, review_count, phone, opening_hours) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, name, description, image_url, address || null, lat || null, lng || null, place_id || null, rarity, userId, rating || null, review_count || null, phone || null, opening_hours || null]
         );
         console.log('Insert successful, returning id:', id);
         return id;
     }
 
     static async update(id, dish) {
-        const { name, description, image_url, rarity, address, lat, lng, place_id } = dish;
+        const { name, description, image_url, rarity, address, lat, lng, place_id, rating, review_count, phone, opening_hours } = dish;
         await db.query(
-            'UPDATE `dishes` SET name = ?, description = ?, image_url = ?, address = ?, lat = ?, lng = ?, place_id = ?, rarity = ? WHERE id = ?',
-            [name, description, image_url, address || null, lat || null, lng || null, place_id || null, rarity, id]
+            'UPDATE `dishes` SET name = ?, description = ?, image_url = ?, address = ?, lat = ?, lng = ?, place_id = ?, rarity = ?, rating = ?, review_count = ?, phone = ?, opening_hours = ? WHERE id = ?',
+            [name, description, image_url, address || null, lat || null, lng || null, place_id || null, rarity, rating || null, review_count || null, phone || null, opening_hours || null, id]
         );
     }
 

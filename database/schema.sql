@@ -18,6 +18,10 @@ CREATE TABLE IF NOT EXISTS `dishes` (
   place_id VARCHAR(255),
   rarity ENUM('common', 'rare', 'epic') NOT NULL DEFAULT 'common',
   user_id VARCHAR(36) NOT NULL,
+  rating DECIMAL(3,1),
+  review_count INT,
+  phone VARCHAR(100),
+  opening_hours TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
