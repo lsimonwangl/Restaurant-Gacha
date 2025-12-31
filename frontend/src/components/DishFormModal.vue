@@ -65,6 +65,7 @@ const submit = () => {
           <option value="common">普通 (Common)</option>
           <option value="rare">稀有 (Rare)</option>
           <option value="epic">史詩 (Epic)</option>
+          <option value="legend">傳說 (Legend)</option>
         </select>
         <div class="modal-actions">
            <button class="btn-primary" @click="submit" :disabled="loading">

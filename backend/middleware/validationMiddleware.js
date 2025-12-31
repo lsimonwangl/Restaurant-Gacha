@@ -21,7 +21,7 @@ const dishValidationRules = [
 
     // Rarity must be one of the allowed values
     body('rarity')
-        .isIn(['common', 'rare', 'epic']).withMessage('Rarity must be common, rare, or epic'),
+        .isIn(['common', 'rare', 'epic', 'legend']).withMessage('Rarity must be common, rare, epic, or legend'),
 
     // Description is optional but must be string if present
     body('description')

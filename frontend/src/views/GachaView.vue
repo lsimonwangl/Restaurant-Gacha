@@ -76,7 +76,7 @@ const draw = async () => {
         </div>
         <div class="card-face card-back" :class="result?.rarity_rolled">
            <div v-if="result" class="card-content">
-             <div class="rarity-badge">{{ result.rarity_rolled === 'common' ? '普通' : result.rarity_rolled === 'rare' ? '稀有' : '史詩' }}</div>
+             <div class="rarity-badge">{{ result.rarity_rolled === 'common' ? '普通' : result.rarity_rolled === 'rare' ? '稀有' : result.rarity_rolled === 'epic' ? '史詩' : '傳說' }}</div>
              <img v-if="result.dish.image_url" :src="result.dish.image_url" alt="Food" class="food-img">
              <h3>{{ result.dish.name }}</h3>
              <p>{{ result.dish.description }}</p>
@@ -194,6 +194,67 @@ const draw = async () => {
 .card-back.common { border-color: #94a3b8; box-shadow: 0 0 30px rgba(148, 163, 184, 0.2); }
 .card-back.rare { border-color: #60a5fa; box-shadow: 0 0 40px rgba(96, 165, 250, 0.4); }
 .card-back.epic { border-color: #c084fc; box-shadow: 0 0 50px rgba(192, 132, 252, 0.6); }
+
+/* Legend Style */
+.card-back.legend {
+    border: 4px solid transparent; /* Required for border-box background origin */
+    background: 
+        padding-box linear-gradient(#1e293b, #0f172a), /* Inner card background */
+        border-box linear-gradient(135deg, #FFD700 0%, #FDB931 25%, #DEAC23 50%, #B46B00 75%, #FFD700 100%); /* Gold Gradient Border */
+    
+    box-shadow: 
+        0 0 60px rgba(255, 215, 0, 0.6), /* Gold Glow */
+        inset 0 0 20px rgba(255, 215, 0, 0.3); /* Inner Glow */
+    
+    position: relative;
+    overflow: hidden;
+}
+
+/* Legend Shine/Sparkle Overlay */
+.card-back.legend::after {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%; width: 200%; height: 200%;
+    
+    /* Rainbow holographic shine */
+    background: linear-gradient(
+        115deg, 
+        transparent 0%, 
+        rgba(255, 215, 0, 0.4) 30%, 
+        rgba(255, 255, 255, 0.8) 50%, 
+        rgba(255, 215, 0, 0.4) 70%, 
+        transparent 100%
+    );
+    
+    transform: rotate(30deg);
+    animation: legend-shine 3s ease-in-out infinite;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+}
+
+/* Floating Particles (Optional simple implementation using box-shadow or another pseudo-element) */
+.card-back.legend::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(white 1px, transparent 1px);
+    background-size: 30px 30px;
+    opacity: 0.3;
+    animation: floating-particles 4s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes legend-shine { 
+    0% { transform: translateX(-100%) rotate(30deg); opacity: 0; } 
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { transform: translateX(100%) rotate(30deg); opacity: 0; } 
+}
+
+@keyframes floating-particles {
+    0% { background-position: 0 0; }
+    100% { background-position: 30px 60px; }
+}
 
 /* Shine effect for Epic */
 .card-back.epic::after {

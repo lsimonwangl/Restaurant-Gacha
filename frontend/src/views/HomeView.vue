@@ -193,7 +193,7 @@ onMounted(async () => {
              
              <!-- Rarity Badge Overlay -->
              <span class="rarity-tag" :class="lastDraw.rarity">
-               {{ lastDraw.rarity === 'common' ? '普通' : lastDraw.rarity === 'rare' ? '稀有' : '史詩' }}
+               {{ lastDraw.rarity === 'common' ? '普通' : lastDraw.rarity === 'rare' ? '稀有' : lastDraw.rarity === 'epic' ? '史詩' : '傳說' }}
              </span>
            </div>
            
@@ -445,6 +445,11 @@ onMounted(async () => {
     background: linear-gradient(135deg, #a855f7 0%, #d946ef 100%);
     box-shadow: 0 2px 10px rgba(168, 85, 247, 0.4);
 }
+.rarity-tag.legend { 
+    background: linear-gradient(135deg, #facc15 0%, #eab308 100%);
+    box-shadow: 0 2px 10px rgba(234, 179, 8, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
 
 .fortune-details {
     padding: 0 0.5rem;
@@ -503,11 +508,12 @@ onMounted(async () => {
 
 .dashboard-stats {
     display: flex;
-    justify-content: space-around;
+    justify-content: center;
     align-items: center;
     width: 100%;
     flex: 1;
     margin-top: 1rem;
+    gap: 1rem;
 }
 
 .stat-item {
@@ -515,6 +521,8 @@ onMounted(async () => {
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
+    flex: 1;
+    min-width: 0; /* Crucial for text-overflow to work in flex child */
 }
 
 .stat-value {
@@ -533,12 +541,19 @@ onMounted(async () => {
 .stat-label {
     font-size: 0.9rem;
     color: var(--text-muted);
+    width: 100%;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 0.5rem;
 }
 
 .stat-divider {
     width: 1px;
-    height: 60%;
+    height: 40px;
     background: rgba(255,255,255,0.1);
+    flex-shrink: 0;
 }
 
 .quick-draw-settings {

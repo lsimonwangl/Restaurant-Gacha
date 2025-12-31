@@ -5,13 +5,15 @@ const DAILY_LIMIT = 5;
 
 class GachaService {
 
-    // Internal Helper: 決定稀有度
+    /* 
+    // Internal Helper: 決定稀有度 (Deprecated)
     static _rollRarity() {
         const rand = Math.random();
         if (rand < 0.75) return 'common';
         if (rand < 0.95) return 'rare';
         return 'epic';
-    }
+    } 
+    */
 
     static async drawDish(userId, groupId) {
         const connection = await db.getConnection();
@@ -24,49 +26,62 @@ class GachaService {
             //     throw { statusCode: 403, message: '每日抽卡次數已達上限' };
             // }
 
-            // 2. 決定稀有度
-            let rarity = this._rollRarity();
+            // 2. Fetch all dishes in group
+            const dishes = await Gacha.getDishesForDraw(groupId, connection);
 
-            // 3. 確認該稀有度是否有菜色
-            let count = await Gacha.getValidDishCount(groupId, rarity, connection);
-
-            if (count === 0) {
-                const rarities = ['common', 'rare', 'epic'];
-                const others = rarities.filter(r => r !== rarity);
-
-                for (const r of others) {
-                    count = await Gacha.getValidDishCount(groupId, r, connection);
-                    if (count > 0) {
-                        rarity = r;
-                        break;
-                    }
-                }
-            }
-
-            if (count === 0) {
+            if (!dishes || dishes.length === 0) {
                 throw { statusCode: 404, message: '此群組中沒有餐廳可供抽取' };
             }
 
-            // 4. Random Offset
-            const offset = Math.floor(Math.random() * count);
+            // 3. Calculate weights and select dish
+            // Weights: Legend(40), Epic(30), Rare(20), Common(10)
+            const getWeight = (rarity) => {
+                switch (rarity) {
+                    case 'legend': return 40;
+                    case 'epic': return 30;
+                    case 'rare': return 20;
+                    default: return 10;
+                }
+            };
 
-            // 5. Fetch Dish
-            const dish = await Gacha.getDishByOffset(groupId, rarity, offset, connection);
+            let totalWeight = 0;
+            const weightedDishes = dishes.map(d => {
+                const weight = getWeight(d.rarity);
+                totalWeight += weight;
+                return { ...d, weight };
+            });
 
-            if (!dish) {
-                // 如果發生，因為有 Transaction + Row locks (雖然這裡是讀所以可能要 FOR UPDATE?)
-                // 在預設 Isolation level 主要是防止不一致。
+            let random = Math.random() * totalWeight;
+            let selectedDish = null;
+
+            for (const d of weightedDishes) {
+                random -= d.weight;
+                if (random <= 0) {
+                    selectedDish = d;
+                    break;
+                }
+            }
+
+            // Fallback (should theoretically not happen if logic is correct)
+            if (!selectedDish) selectedDish = weightedDishes[weightedDishes.length - 1];
+
+            // 4. Use selected dish (no need to fetch again by offset)
+            // Ideally we need a method to get dish by ID. using db.query directly here for simplicity and to stay in transaction
+            const [selectedDishDetails] = await connection.query('SELECT * FROM dishes WHERE id = ?', [selectedDish.id]);
+            const finalDish = selectedDishDetails[0];
+
+            if (!finalDish) {
                 throw { statusCode: 404, message: 'Dish not found during draw attempt' };
             }
 
             // 6. Record Draw
-            await Gacha.createDraw(userId, dish.id, rarity, connection);
+            await Gacha.createDraw(userId, finalDish.id, finalDish.rarity, connection);
 
             await connection.commit();
 
             return {
-                dish,
-                rarity_rolled: rarity,
+                dish: finalDish,
+                rarity_rolled: finalDish.rarity,
                 remaining: 9999
             };
 

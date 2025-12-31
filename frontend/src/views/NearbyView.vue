@@ -108,8 +108,9 @@ const saveToDatabase = async (place) => {
         // Auto Rarity Logic
         const rating = detailedPlace.rating || 0
         let rarity = 'common'
-        if (rating >= 4.5) rarity = 'epic' // SSR
-        else if (rating >= 4.0) rarity = 'rare' // SR
+        if (rating >= 4.5) rarity = 'legend' // SSR
+        else if (rating >= 4.0) rarity = 'epic' // SR
+        else if (rating >= 3.5) rarity = 'rare' // R
         formData.append('rarity', rarity)
 
         // Image URL

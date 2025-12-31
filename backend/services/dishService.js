@@ -76,6 +76,7 @@ class DishService {
             ...dishData,
             image_url,
             place_id: dishData.place_id || null,
+            rarity: dishData.rarity || dish.rarity, // Preserve manual rarity if not updated
             lat: dishData.lat || null,
             lng: dishData.lng || null,
             address: dishData.address || null,

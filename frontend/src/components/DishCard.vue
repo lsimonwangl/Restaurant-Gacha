@@ -28,7 +28,7 @@ const handleExpand = (event) => {
     <div class="card-image-wrapper">
       <img v-if="dish.image_url" :src="dish.image_url" alt="Food" class="card-img">
       <div v-else class="card-img-placeholder">🍽️</div>
-      <span class="badge-overlay">{{ dish.rarity === 'common' ? '普通' : dish.rarity === 'rare' ? '稀有' : '史詩' }}</span>
+      <span class="badge-overlay">{{ dish.rarity === 'common' ? '普通' : dish.rarity === 'rare' ? '稀有' : dish.rarity === 'epic' ? '史詩' : '傳說' }}</span>
     </div>
     
     <div class="card-body">
@@ -108,6 +108,11 @@ const handleExpand = (event) => {
     box-shadow: 0 0 30px rgba(139, 92, 246, 0.6), 0 25px 50px -12px rgba(0,0,0,0.8);
     border-color: #a78bfa;
 }
+.dish-card.floating-active.legend {
+    box-shadow: 0 0 40px rgba(234, 179, 8, 0.8), 0 25px 50px -12px rgba(0,0,0,0.8);
+    border-color: #facc15;
+    background: linear-gradient(135deg, rgba(30,41,59,1) 0%, rgba(30,41,59,0.9) 100%);
+}
 
 @keyframes popIn {
   0% { transform: scale(1); }
@@ -125,6 +130,7 @@ const handleExpand = (event) => {
 .dish-card.common:hover { border-color: #64748b; }
 .dish-card.rare:hover { box-shadow: 0 12px 24px -4px rgba(59, 130, 246, 0.3); border-color: #3b82f6; }
 .dish-card.epic:hover { box-shadow: 0 12px 24px -4px rgba(139, 92, 246, 0.4); border-color: #8b5cf6; }
+.dish-card.legend:hover { box-shadow: 0 12px 24px -4px rgba(234, 179, 8, 0.5); border-color: #eab308; }
 
 
 .card-img {
@@ -196,6 +202,7 @@ const handleExpand = (event) => {
 
 .dish-card.rare .badge { color: #60a5fa; background: rgba(59, 130, 246, 0.1); }
 .dish-card.epic .badge { color: #a78bfa; background: rgba(139, 92, 246, 0.1); }
+.dish-card.legend .badge { color: #facc15; background: rgba(234, 179, 8, 0.15); }
 
 /* Card Footer & Actions */
 .card-footer {
@@ -245,6 +252,7 @@ const handleExpand = (event) => {
 .dish-card.common .card-image-wrapper { border-top-color: #64748b; }
 .dish-card.rare .card-image-wrapper { border-top-color: #3b82f6; }
 .dish-card.epic .card-image-wrapper { border-top-color: #8b5cf6; }
+.dish-card.legend .card-image-wrapper { border-top-color: #eab308; }
 
 .badge-overlay {
   position: absolute;

@@ -22,6 +22,17 @@ class Gacha {
         return rows[0].count;
     }
 
+    static async getDishesForDraw(groupId, connection = null) {
+        const queryExecutor = connection || db;
+        const [rows] = await queryExecutor.query(
+            `SELECT d.id, d.name, d.rarity, d.rating FROM \`dishes\` d
+             JOIN \`dish_groups\` dg ON d.id = dg.dish_id
+             WHERE dg.group_id = ?`,
+            [groupId]
+        );
+        return rows;
+    }
+
     static async getDishByOffset(groupId, rarity, offset, connection = null) {
         const queryExecutor = connection || db;
         const [dishes] = await queryExecutor.query(

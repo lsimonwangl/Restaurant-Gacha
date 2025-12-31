@@ -213,6 +213,43 @@ const fetchPlaceDetail = async (query) => {
     })
 }
 
+const updateDishData = async (dish) => {
+    // Helper to fetch details and save to DB
+    if (!dish.place_id) return false // Cannot update without place_id
+    
+    try {
+        await initPlacesService()
+        const detail = await new Promise((resolve, reject) => {
+            placesService.getDetails({
+                placeId: dish.place_id,
+                fields: ['name', 'formatted_address', 'formatted_phone_number', 'international_phone_number', 'rating', 'user_ratings_total', 'photos', 'opening_hours', 'geometry']
+            }, (placeDetail, status) => {
+                if (status !== window.google.maps.places.PlacesServiceStatus.OK) {
+                    return reject(status)
+                }
+                const photoUrl = placeDetail.photos?.[0]?.getUrl({ maxWidth: 800, maxHeight: 600 })
+                resolve({
+                    name: placeDetail.name,
+                    address: placeDetail.formatted_address,
+                    phone: placeDetail.formatted_phone_number || placeDetail.international_phone_number || '',
+                    rating: placeDetail.rating,
+                    reviewCount: placeDetail.user_ratings_total,
+                    openingHours: placeDetail.opening_hours?.weekday_text,
+                    location: placeDetail.geometry?.location,
+                    photoUrl,
+                })
+            })
+        })
+
+        // Always save if we fetched successfully
+        await savePlaceDetailsToDb(dish, detail)
+        return true
+    } catch (e) {
+        console.warn(`Failed to update ${dish.name}:`, e)
+        return false
+    }
+}
+
 const showPlaceOnPanel = async (dish) => {
     placeDetail.value = null
     infoPanelOpen.value = true
@@ -233,132 +270,87 @@ const showPlaceOnPanel = async (dish) => {
 
     let locationFromDetail = null
 
-    // [Smart Cache Check]
-    // If we have cached details (phone/hours), use them and skip API call
+    //如果只有 place_id 且缺詳細資料，嘗試背景更新 (Single Update)
+    // 但因為我們有了 updateAll 功能，這邊可以只做 "如果完全沒資料才抓" 或是 "Smart Cache"
     const hasCachedDetails = dish.phone || dish.opening_hours || dish.rating;
     
-    // 如果有 place_id，優先使用 getDetails 取得精準位置與資訊
     if (dish.place_id && !hasCachedDetails) {
-        try {
-            await initPlacesService()
-            const detail = await new Promise((resolve, reject) => {
-                placesService.getDetails({
-                    placeId: dish.place_id,
-                    fields: ['name', 'formatted_address', 'formatted_phone_number', 'international_phone_number', 'rating', 'user_ratings_total', 'photos', 'opening_hours', 'geometry']
-                }, (placeDetail, status) => {
-                    if (status !== window.google.maps.places.PlacesServiceStatus.OK) {
-                        return reject(status)
-                    }
-                    const photoUrl = placeDetail.photos?.[0]?.getUrl({ maxWidth: 800, maxHeight: 600 })
-                    resolve({
-                        name: placeDetail.name,
-                        address: placeDetail.formatted_address,
-                        phone: placeDetail.formatted_phone_number || placeDetail.international_phone_number || '',
-                        rating: placeDetail.rating,
-                        reviewCount: placeDetail.user_ratings_total,
-                        openingHours: placeDetail.opening_hours?.weekday_text,
-                        location: placeDetail.geometry?.location,
-                        photoUrl,
-                    })
-                })
-            })
-
-            placeDetail.value = {
-                name: detail.name || dish.name,
-                address: detail.address || dish.address,
-                phone: detail.phone || '',
-                rating: detail.rating || null,
-                reviewCount: detail.reviewCount || null,
-                openingHours: detail.openingHours || null,
-                photoUrl: dish.image_url || detail.photoUrl || '',
-                placeId: dish.place_id,
-                id: dish.id
+        // Trigger background update for this single dish
+        updateDishData(dish).then(success => {
+            if (success && placeDetail.value?.id === dish.id) {
+                // If panel is still open for this dish, refresh view
+                // We can't easily re-trigger showPlaceOnPanel without infinite loop or complex state.
+                // Instead, just update placeDetail.value via reactivity if we could.
+                // Or simplified: Just let the updateAll button handle mass updates.
+                // For now, let's keep the original "Lazy Update" behavior but using the new helper?
+                // Actually the original logic put 'placeDetail.value' update inside the fetch block.
+                // Let's stick closer to original logic for 'showPlaceOnPanel' to ensure smooth UX,
+                // BUT call savePlaceDetailsToDb same as before.
             }
-
-            locationFromDetail = detail.location || null
-            locationFromDetail = detail.location || null
-            
-            // Background Save (Lazy Update)
-            savePlaceDetailsToDb(dish, detail)
-            
-        } catch (e) {
-            console.warn('查詢 place_id 失敗，改用基本資料', e)
-        }
+        })
     }
-    // 沒有 place_id 時，不做額外搜尋，只顯示基本資料和儲存的座標
-
-    // 只要有座標就顯示大頭針
+    
+    // Original Logic for setting map location
     const fallbackLocation = (dish.lat && dish.lng) ? { lat: Number(dish.lat), lng: Number(dish.lng) } : null
-    const targetLocation = locationFromDetail || fallbackLocation
-
-    if (targetLocation) {
-        await ensureMap()
-        await nextTick() // Ensure map container is ready
-        map.setCenter(targetLocation)
-        map.setZoom(16)
-        if (!marker) {
-            marker = new window.google.maps.Marker({ map })
-        } else {
-            marker.setMap(map)
-        }
-        marker.setPosition(targetLocation)
-        marker.setTitle(placeDetail.value.name)
+    if (fallbackLocation) {
+         await ensureMap()
+         await nextTick()
+         map.setCenter(fallbackLocation)
+         map.setZoom(16)
+         if (!marker) marker = new window.google.maps.Marker({ map })
+         marker.setMap(map)
+         marker.setPosition(fallbackLocation)
+         marker.setTitle(dish.name)
     }
 }
 
-const savePlaceDetailsToDb = async (dish, detail) => {
-    // Only save if we have new meaningful info
-    if (!detail.rating && !detail.phone && !detail.openingHours) return
+const isUpdatingAll = ref(false)
+const updateProgress = ref({ current: 0, total: 0 })
 
-    console.log('🔄 Background saving details for:', dish.name)
-    try {
-        const formData = new FormData()
-        // Must include ALL existing fields to prevent overwriting with NULL
-        formData.append('name', dish.name)
-        formData.append('rarity', dish.rarity)
-        formData.append('description', dish.description || '')
-        formData.append('image_url', dish.image_url || '')
-        
-        // Critical: Preserve Geo & ID
-        if (dish.lat) formData.append('lat', dish.lat)
-        if (dish.lng) formData.append('lng', dish.lng)
-        if (dish.place_id) formData.append('place_id', dish.place_id)
-        
-        // New Fields
-        if (detail.rating) formData.append('rating', detail.rating)
-        if (detail.reviewCount) formData.append('review_count', detail.reviewCount)
-        if (detail.phone) formData.append('phone', detail.phone)
-        if (detail.openingHours) formData.append('opening_hours', JSON.stringify(detail.openingHours))
+const updateAllRestaurants = async () => {
+    const targets = dishes.value.filter(d => d.place_id)
+    if (targets.length === 0) return alert('沒有綁定 Google 地點的餐廳，無法更新。')
+    
+    if (!confirm(`即將更新 ${targets.length} 間餐廳的資訊 (評分、電話、營業時間等)，這可能需要一點時間。確定要繼續嗎？`)) return
 
-        // Don't overwrite image_url unless we want to... let's keep it safe and NOT overwrite.
-        // But if detail has better address?
-        if (detail.address) {
-             formData.append('address', detail.address)
-        } else {
-             formData.append('address', dish.address || '')
+    isUpdatingAll.value = true
+    updateProgress.value = { current: 0, total: targets.length }
+    
+    let successCount = 0
+    
+    // Process in chunks to avoid blocking too much or hitting easy rate limits
+    const CHUNK_SIZE = 3 
+    for (let i = 0; i < targets.length; i += CHUNK_SIZE) {
+        const chunk = targets.slice(i, i + CHUNK_SIZE)
+        const promises = chunk.map(dish => updateDishData(dish))
+        
+        const results = await Promise.all(promises)
+        successCount += results.filter(r => r).length
+        
+        updateProgress.value.current = Math.min(i + CHUNK_SIZE, targets.length)
+        
+        // Small delay between chunks
+        if (i + CHUNK_SIZE < targets.length) {
+            await new Promise(r => setTimeout(r, 1000)) 
         }
-
-        const res = await dishesApi.update(dish.id, formData)
-        
-        // Update local object to reflect saved state (so next time we use cache)
-        const idx = dishes.value.findIndex(d => d.id === dish.id)
-        if (idx !== -1) {
-            dishes.value[idx] = { ...dishes.value[idx], ...res.data }
-        }
-        console.log('✅ Details saved to DB')
-    } catch (e) {
-        console.error('❌ Failed to save background details:', e)
     }
+    
+    isUpdatingAll.value = false
+    alert(`更新完成！成功更新 ${successCount} / ${targets.length} 間餐廳。`)
+    fetchDishes() // Refresh list to show new data
 }
 
 const refreshPlaceInfo = async (dish) => {
     if (!dish.place_id) return alert('此餐廳沒有連結 Google 地點，無法更新')
     
-    // Force clear cache-like check in showPlaceOnPanel (actually we just bypass logic)
-    // We can just reuse the fetch logic.
-    const tempDish = { ...dish, phone: null, opening_hours: null, rating: null } // Trick to force fetch
-    await showPlaceOnPanel(tempDish) 
-    alert('已更新最新資訊！')
+    const success = await updateDishData(dish)
+    if (success) {
+        alert('已更新最新資訊！')
+        // Refresh current list item manually or re-fetch
+        fetchDishes()
+    } else {
+        alert('更新失敗，請稍後再試')
+    }
 }
 
 const initPlacesService = async () => {
@@ -876,6 +868,9 @@ fetchGroups()
         <button class="btn-primary" @click="showCreateDish = true">➕ 新增餐廳</button>
         <button class="btn-secondary" @click="showCreateGroup = true">📁 新增群組</button>
         <button v-if="groups.length > 0" class="btn-small" @click="showManageGroups = true">⚙️ 管理群組</button>
+        <button class="btn-small btn-highlight" @click="updateAllRestaurants" :disabled="isUpdatingAll">
+            {{ isUpdatingAll ? `更新中 (${updateProgress.current}/${updateProgress.total})...` : '🔄 更新所有資料' }}
+        </button>
         
         <div v-if="groups.length > 0" class="group-list-display">
             <span style="color: var(--secondary-color); margin-right: 0.5rem;" @click="selectedGroupFilter = null; fetchDishes()" :style="{cursor: 'pointer', textDecoration: selectedGroupFilter ? 'underline' : 'none'}">目前群組 (點擊篩選):</span>
@@ -1014,6 +1009,7 @@ fetchGroups()
           <option value="common">普通 (Common)</option>
           <option value="rare">稀有 (Rare)</option>
           <option value="epic">史詩 (Epic)</option>
+          <option value="legend">傳說 (Legend)</option>
         </select>
         <div class="modal-actions">
            <button class="btn-primary" @click="createDish" :disabled="uploading">
@@ -1097,6 +1093,7 @@ fetchGroups()
           <option value="common">普通 (Common)</option>
           <option value="rare">稀有 (Rare)</option>
           <option value="epic">史詩 (Epic)</option>
+          <option value="legend">傳說 (Legend)</option>
         </select>
         <div class="modal-actions">
            <button class="btn-primary" @click="updateDish" :disabled="uploading">
@@ -1287,6 +1284,15 @@ fetchGroups()
     background: rgba(239, 68, 68, 0.1);
     border-color: #ef4444;
     color: var(--text-muted);
+}
+
+.btn-highlight {
+    border-color: #facc15;
+    color: #facc15;
+}
+.btn-highlight:hover {
+    background: rgba(250, 204, 21, 0.1);
+    color: #fde047;
 }
 
 /* Manage Groups List */

@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS `dishes` (
   lat DECIMAL(10,7),
   lng DECIMAL(10,7),
   place_id VARCHAR(255),
-  rarity ENUM('common', 'rare', 'epic') NOT NULL DEFAULT 'common',
+  rarity ENUM('common', 'rare', 'epic', 'legend') NOT NULL DEFAULT 'common',
   user_id VARCHAR(36) NOT NULL,
   rating DECIMAL(3,1),
   review_count INT,
@@ -67,15 +67,7 @@ CREATE TABLE IF NOT EXISTS `draws` (
   FOREIGN KEY (dish_id) REFERENCES dishes(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS `favorites` (
-  id VARCHAR(36) PRIMARY KEY,
-  user_id VARCHAR(36) NOT NULL,
-  dish_id VARCHAR(36) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY (dish_id) REFERENCES dishes(id) ON DELETE CASCADE,
-  UNIQUE KEY unique_user_dish (user_id, dish_id)
-);
+
 
 CREATE TABLE IF NOT EXISTS `daily_stats` (
   date DATE PRIMARY KEY,
