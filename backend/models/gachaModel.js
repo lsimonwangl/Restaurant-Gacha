@@ -1,5 +1,6 @@
 const db = require('../config/db');
-const { v7: uuidv7 } = require('uuid');
+const { randomUUID } = require('crypto');
+const uuidv7 = randomUUID;
 
 class Gacha {
     static async getDailyDrawCount(userId, connection = null) {
@@ -45,19 +46,19 @@ class Gacha {
         return dishes[0];
     }
 
-    static async createDraw(userId, dishId, rarity, connection = null) {
+    static async createDraw(userId, dishId, rarity, groupId, connection = null) {
         const queryExecutor = connection || db;
         const id = uuidv7();
         await queryExecutor.query(
-            'INSERT INTO `draws` (id, user_id, dish_id, rarity) VALUES (?, ?, ?, ?)',
-            [id, userId, dishId, rarity]
+            'INSERT INTO `draws` (id, user_id, dish_id, rarity, group_id) VALUES (?, ?, ?, ?, ?)',
+            [id, userId, dishId, rarity, groupId]
         );
     }
 
     static async getDrawHistory(userId) {
         const [rows] = await db.query(
-            `SELECT dr.id, dr.created_at, d.name, d.image_url, dr.rarity,
-            (SELECT GROUP_CONCAT(group_id) FROM dish_groups WHERE dish_id = d.id) as group_ids 
+            `SELECT dr.id, dr.created_at, d.name, d.image_url, dr.rarity, dr.group_id,
+            (SELECT name FROM \`groups\` WHERE id = dr.group_id) as group_name
             FROM \`draws\` dr
             JOIN \`dishes\` d ON dr.dish_id = d.id
             WHERE dr.user_id = ?
@@ -68,15 +69,13 @@ class Gacha {
     }
 
     static async getDrawCount(userId, groupId = null) {
-        let sql = 'SELECT COUNT(DISTINCT dr.id) as count FROM `draws` dr';
-        const params = [];
+        let sql = 'SELECT COUNT(id) as count FROM `draws` WHERE user_id = ?';
+        const params = [userId];
 
         if (groupId) {
-            sql += ' JOIN `dish_groups` dg ON dr.dish_id = dg.dish_id WHERE dr.user_id = ? AND dg.group_id = ?';
-            params.push(userId, groupId);
-        } else {
-            sql += ' WHERE dr.user_id = ?';
-            params.push(userId);
+            // New Logic: Filter by group_id column directly
+            sql += ' AND group_id = ?';
+            params.push(groupId);
         }
 
         const [rows] = await db.query(sql, params);
@@ -88,15 +87,14 @@ class Gacha {
             SELECT d.name, COUNT(*) as count 
             FROM \`draws\` dr
             JOIN \`dishes\` d ON dr.dish_id = d.id
+            WHERE dr.user_id = ?
         `;
-        const params = [];
+        const params = [userId];
 
         if (groupId) {
-            sql += ' JOIN `dish_groups` dg ON dr.dish_id = dg.dish_id WHERE dr.user_id = ? AND dg.group_id = ?';
-            params.push(userId, groupId);
-        } else {
-            sql += ' WHERE dr.user_id = ?';
-            params.push(userId);
+            // New Logic: Filter by group_id column directly
+            sql += ' AND dr.group_id = ?';
+            params.push(groupId);
         }
 
         sql += ' GROUP BY d.id, d.name ORDER BY count DESC LIMIT 1';

@@ -75,13 +75,14 @@ class GachaService {
             }
 
             // 6. Record Draw
-            await Gacha.createDraw(userId, finalDish.id, finalDish.rarity, connection);
+            await Gacha.createDraw(userId, finalDish.id, finalDish.rarity, groupId, connection);
 
             await connection.commit();
 
             return {
                 dish: finalDish,
                 rarity_rolled: finalDish.rarity,
+                group_id: groupId, // Return for verification
                 remaining: 9999
             };
 

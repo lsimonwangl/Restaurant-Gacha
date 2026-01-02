@@ -94,6 +94,25 @@ describe('Full Integration Test (Auth + Groups)', () => {
         expect(res.statusCode).toEqual(200);
     });
 
+    // 6.5. 測試抽卡並驗證 Traceability (New!)
+    it('should draw a dish and record group_id', async () => {
+        const res = await request(app)
+            .post('/api/gacha/draw')
+            .set('Authorization', `Bearer ${authToken}`)
+            .send({
+                groupId: createdGroupId,
+                amount: 1
+            });
+
+        expect(res.statusCode).toEqual(200);
+        // expect(Array.isArray(res.body)).toBe(true); // API returns single object now
+
+        // 關鍵驗證：檢查回傳的抽卡結果是否有 group_id 且正確
+        const drawResult = res.body;
+        expect(drawResult).toHaveProperty('group_id');
+        expect(String(drawResult.group_id)).toBe(String(createdGroupId));
+    });
+
     // 7. 測試刪除群組
     it('should delete the group', async () => {
         const res = await request(app)

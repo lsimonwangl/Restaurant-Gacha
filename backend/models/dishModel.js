@@ -1,5 +1,6 @@
 const db = require('../config/db');
-const { v7: uuidv7 } = require('uuid');
+const { randomUUID } = require('crypto');
+const uuidv7 = randomUUID; // Use v4 as fallback/replacement
 
 class Dish {
     static getRarityFromRating(rating) {

@@ -4,8 +4,8 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const config = {
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 3306,
+    host: process.env.DB_HOST || '127.0.0.1',
+    port: process.env.DB_PORT || 3308,
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD, // Make sure this is set in .env
     database: process.env.DB_NAME || 'restaurant_gacha',
@@ -148,6 +148,22 @@ async function migrate() {
             } else {
                 console.log('⚠️ Could not add index to saved_groups: ' + err.message);
             }
+        }
+
+        // 10. Add group_id to draws
+        try {
+            const [cols] = await connection.query("SHOW COLUMNS FROM `draws` LIKE 'group_id'");
+            if (cols.length === 0) {
+                console.log('✨ Adding group_id to draws...');
+                await connection.query("ALTER TABLE `draws` ADD COLUMN `group_id` VARCHAR(36) AFTER `user_id`");
+                // Add FK
+                await connection.query("ALTER TABLE `draws` ADD CONSTRAINT `fk_draws_group` FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON DELETE SET NULL");
+                console.log('✅ Added group_id to draws.');
+            } else {
+                console.log('ℹ️ Column group_id already exists in draws.');
+            }
+        } catch (err) {
+            console.warn(`⚠️ Could not add group_id to draws: ${err.message}`);
         }
 
         console.log('🎉 Migration completed successfully!');
