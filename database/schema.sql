@@ -77,3 +77,15 @@ CREATE TABLE IF NOT EXISTS `daily_stats` (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS `user_stats` (
+  `user_id` VARCHAR(36) NOT NULL,
+  `total_draws` INT DEFAULT 0,
+  `current_streak` INT DEFAULT 0,
+  `total_login_days` INT DEFAULT 1,
+  `last_active_date` DATE,
+  `unique_dishes_count` INT DEFAULT 0,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`),
+  CONSTRAINT `fk_stats_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
