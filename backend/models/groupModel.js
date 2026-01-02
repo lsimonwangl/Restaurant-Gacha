@@ -128,10 +128,14 @@ class Group {
 
     static async save(userId, groupId) {
         const id = uuidv7();
-        // IGNORE prevents error on duplicate, but if not duplicate, we insert new row with UUID
-        // However, with IGNORE and UUID PK, if unique key (user_id, group_id) violation occurs, it's ignored.
-        // If not, we insert.
-        await db.query('INSERT IGNORE INTO `saved_groups` (id, user_id, group_id) VALUES (?, ?, ?)', [id, userId, groupId]);
+        try {
+            await db.query('INSERT INTO `saved_groups` (id, user_id, group_id) VALUES (?, ?, ?)', [id, userId, groupId]);
+        } catch (err) {
+            if (err.code === 'ER_DUP_ENTRY') {
+                throw { statusCode: 409, message: '您早已收藏此群組' };
+            }
+            throw err;
+        }
     }
 
     static async unsave(userId, groupId) {
@@ -140,7 +144,14 @@ class Group {
 
     static async addDish(groupId, dishId) {
         const id = uuidv7();
-        await db.query('INSERT IGNORE INTO `dish_groups` (id, group_id, dish_id) VALUES (?, ?, ?)', [id, groupId, dishId]);
+        try {
+            await db.query('INSERT INTO `dish_groups` (id, group_id, dish_id) VALUES (?, ?, ?)', [id, groupId, dishId]);
+        } catch (err) {
+            if (err.code === 'ER_DUP_ENTRY') {
+                throw { statusCode: 409, message: '該餐廳已在群組中' };
+            }
+            throw err;
+        }
     }
 
     // Get dishes in a group, optionally filtered by rarity

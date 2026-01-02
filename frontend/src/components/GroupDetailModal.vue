@@ -65,8 +65,12 @@ const importAll = async () => {
 const importOne = async (dish) => {
     if (!confirm(`確定要匯入「${dish.name}」嗎？`)) return;
     try {
-        await dishesApi.importOne(dish.id);
-        alert(`成功匯入「${dish.name}」！`);
+        const res = await dishesApi.importOne(dish.id);
+        if (res.data.isNew) {
+            alert(`成功匯入「${dish.name}」！`);
+        } else {
+            alert(`您已經擁有「${dish.name}」了 (已自動略過以防重複)`);
+        }
     } catch (e) {
         alert('匯入失敗: ' + (e.response?.data?.message || e.message));
     }

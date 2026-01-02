@@ -16,6 +16,12 @@ class DishService {
     }
 
     static async createDish(userId, dishData, file) {
+        // Check for duplicate before processing image
+        const existing = await Dish.findByPlaceIdOrNameAddress(userId, dishData.place_id, dishData.name, dishData.address);
+        if (existing) {
+            throw { statusCode: 409, message: `餐廳「${existing.name}」已存在您的清單中` };
+        }
+
         let image_url = dishData.image_url || '';
 
         // Handle Google Maps Photo URL -> Download and re-upload to S3
@@ -113,6 +119,13 @@ class DishService {
             throw { statusCode: 404, message: 'Source dish not found' };
         }
 
+        // Check for duplicate
+        const existing = await Dish.findByPlaceIdOrNameAddress(userId, sourceDish.place_id, sourceDish.name, sourceDish.address);
+        if (existing) {
+            console.log(`[Import Single] Skipping duplicate: ${sourceDish.name} (Existing ID: ${existing.id})`);
+            return { dish: existing, isNew: false }; // Return existing dish with flag
+        }
+
         const newDishId = await Dish.create({
             name: sourceDish.name,
             description: sourceDish.description,
@@ -128,7 +141,8 @@ class DishService {
             opening_hours: sourceDish.opening_hours
         }, userId);
 
-        return await Dish.findById(newDishId);
+        const newDish = await Dish.findById(newDishId);
+        return { dish: newDish, isNew: true };
     }
 
     static async importDishesFromGroup(userId, sourceGroupId) {
@@ -138,7 +152,21 @@ class DishService {
         }
 
         let count = 0;
+        let skipped = 0;
         for (const dish of dishes) {
+            // Check for duplicate
+            console.log(`[Import Check] Checking duplicate for: Name="${dish.name}", Address="${dish.address}", PlaceID="${dish.place_id}"`);
+            const existing = await Dish.findByPlaceIdOrNameAddress(userId, dish.place_id, dish.name, dish.address);
+
+            if (existing) {
+                console.log(`[Import Check] FOUND DUPLICATE! Existing ID: ${existing.id}`);
+                console.log(`Skipping duplicate import: ${dish.name} (Existing ID: ${existing.id})`);
+                skipped++;
+                continue;
+            } else {
+                console.log(`[Import Check] No duplicate found. Creating new dish...`);
+            }
+
             await Dish.create({
                 name: dish.name,
                 description: dish.description,
@@ -155,7 +183,7 @@ class DishService {
             }, userId);
             count++;
         }
-        return { message: 'Imported successfully', count };
+        return { message: 'Imported successfully', count, skipped };
     }
 }
 

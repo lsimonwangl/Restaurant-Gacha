@@ -94,6 +94,62 @@ async function migrate() {
         await addColumnSafe('dishes', '`lng` DECIMAL(10,7)');
         await addColumnSafe('dishes', '`place_id` VARCHAR(255) NULL');
 
+        // 6. Clean up duplicates in dish_groups
+        try {
+            console.log('🧹 Cleaning up duplicates in dish_groups...');
+            await connection.query(`
+                DELETE t1 FROM dish_groups t1
+                INNER JOIN dish_groups t2 
+                WHERE t1.id > t2.id AND t1.dish_id = t2.dish_id AND t1.group_id = t2.group_id
+            `);
+            console.log('✅ Duplicates removed from dish_groups.');
+        } catch (err) {
+            if (err.code === 'ER_NO_SUCH_TABLE') {
+                console.log('ℹ️ Table dish_groups does not exist yet, skipping cleanup.');
+            } else {
+                console.log('⚠️ Error cleaning dish_groups duplicates: ' + err.message);
+            }
+        }
+
+        // 7. Add UNIQUE constraint to dish_groups
+        try {
+            await connection.query("ALTER TABLE `dish_groups` ADD UNIQUE KEY `unique_dish_group` (dish_id, group_id)");
+            console.log('✅ Added unique constraint to dish_groups.');
+        } catch (err) {
+            if (err.code === 'ER_DUP_KEYNAME') {
+                console.log('ℹ️ Index `unique_dish_group` already exists.');
+            } else if (err.code === 'ER_NO_SUCH_TABLE') {
+                console.log('ℹ️ Table dish_groups does not exist yet, skipping index add.');
+            } else {
+                console.log('⚠️ Could not add index to dish_groups: ' + err.message);
+            }
+        }
+
+        // 8. Clean up duplicates in saved_groups
+        try {
+            console.log('🧹 Cleaning up duplicates in saved_groups...');
+            await connection.query(`
+                DELETE t1 FROM saved_groups t1
+                INNER JOIN saved_groups t2 
+                WHERE t1.id > t2.id AND t1.user_id = t2.user_id AND t1.group_id = t2.group_id
+            `);
+            console.log('✅ Duplicates removed from saved_groups.');
+        } catch (err) {
+            console.log('⚠️ Error cleaning saved_groups duplicates: ' + err.message);
+        }
+
+        // 9. Add UNIQUE constraint to saved_groups (if missing)
+        try {
+            await connection.query("ALTER TABLE `saved_groups` ADD UNIQUE KEY `unique_save` (user_id, group_id)");
+            console.log('✅ Added unique constraint to saved_groups.');
+        } catch (err) {
+            if (err.code === 'ER_DUP_KEYNAME') {
+                console.log('ℹ️ Index `unique_save` already exists.');
+            } else {
+                console.log('⚠️ Could not add index to saved_groups: ' + err.message);
+            }
+        }
+
         console.log('🎉 Migration completed successfully!');
 
     } catch (err) {

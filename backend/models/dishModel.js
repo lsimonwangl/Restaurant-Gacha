@@ -30,6 +30,38 @@ class Dish {
         return rows[0];
     }
 
+    static async findByPlaceIdOrNameAddress(userId, placeId, name, address) {
+        let sql = 'SELECT * FROM `dishes` WHERE user_id = ? AND (';
+        const params = [userId];
+
+        const conditions = [];
+        if (placeId) {
+            conditions.push('place_id = ?');
+            params.push(placeId);
+        }
+
+        // Always check name + address as fallback or primary if no place_id
+        if (name) {
+            // Basic name matching. 
+            // Ideally we also match address, but address format can vary.
+            // If address is provided, strict match.
+            if (address) {
+                conditions.push('(name = ? AND address = ?)');
+                params.push(name, address);
+            } else {
+                conditions.push('name = ?');
+                params.push(name);
+            }
+        }
+
+        if (conditions.length === 0) return null;
+
+        sql += conditions.join(' OR ') + ') LIMIT 1';
+
+        const [rows] = await db.query(sql, params);
+        return rows[0];
+    }
+
     static async create(dish, userId) {
         console.log('Dish.create called with dish:', dish, 'userId:', userId);
         const { name, description, image_url, address, lat, lng, place_id, rating, review_count, phone, opening_hours } = dish;
