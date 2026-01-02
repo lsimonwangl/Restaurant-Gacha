@@ -3,6 +3,16 @@ const { randomUUID } = require('crypto');
 const uuidv7 = randomUUID;
 
 class Gacha {
+    // Check if dish is new for user
+    static async isNewDish(userId, dishId, connection = null) {
+        const queryExecutor = connection || db;
+        const [rows] = await queryExecutor.query(
+            'SELECT 1 FROM `draws` WHERE user_id = ? AND dish_id = ? LIMIT 1',
+            [userId, dishId]
+        );
+        return rows.length === 0;
+    }
+
     static async getDailyDrawCount(userId, connection = null) {
         const queryExecutor = connection || db;
         const [rows] = await queryExecutor.query(

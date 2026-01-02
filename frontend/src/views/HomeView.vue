@@ -11,6 +11,7 @@ const dishCount = ref(0)
 const loading = ref(true)
 const dishes = ref([])
 const totalDraws = ref(0)
+const collectedCount = ref(0) // New
 const mostFrequent = ref(null)
 const defaultGroupId = ref(null)
 const drawing = ref(false)
@@ -54,6 +55,7 @@ const fetchStats = async () => {
     
     // Set Stats from Backend
     totalDraws.value = statsRes.data.totalDraws
+    collectedCount.value = statsRes.data.uniqueDishesCount || 0 // New
     mostFrequent.value = statsRes.data.mostFrequent
 
     if (groupsRes.data.length > 0) {
@@ -88,6 +90,7 @@ watch(defaultGroupId, async (newVal) => {
         try {
             const res = await gachaApi.getStats({ groupId: newVal, _t: Date.now() })
             totalDraws.value = res.data.totalDraws
+            collectedCount.value = res.data.uniqueDishesCount || 0 // New
             mostFrequent.value = res.data.mostFrequent
         } catch (e) {
             console.error('Update stats failed', e)

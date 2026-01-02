@@ -2,6 +2,7 @@ const User = require('../models/userModel');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { uploadToS3 } = require('../middleware/uploadMiddleware');
+const UserStatsService = require('./userStatsService');
 
 class UserService {
     static _generateToken(id) {
@@ -45,6 +46,14 @@ class UserService {
         const user = await User.findByEmail(email);
 
         if (user && (await bcrypt.compare(password, user.password))) {
+            // Track stats (login days, streak)
+            // Fire and forget (don't block login if stats fail, or maybe block? user might want robust streak. let's await.)
+            try {
+                await UserStatsService.updateActivity(user.id);
+            } catch (err) {
+                console.error('Failed to update user stats on login:', err);
+            }
+
             return {
                 _id: user.id,
                 name: user.name,

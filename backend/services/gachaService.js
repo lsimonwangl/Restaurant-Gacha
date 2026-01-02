@@ -1,5 +1,6 @@
 const Gacha = require('../models/gachaModel');
 const db = require('../config/db'); // Import DB for transactions
+const UserStatsService = require('./userStatsService');
 
 const DAILY_LIMIT = 5;
 
@@ -77,13 +78,18 @@ class GachaService {
             // 6. Record Draw
             await Gacha.createDraw(userId, finalDish.id, finalDish.rarity, groupId, connection);
 
+            // 7. Update User Stats (Streak, Collection, etc.)
+            const isNewDish = await Gacha.isNewDish(userId, finalDish.id, connection);
+            const statsUpdate = await UserStatsService.updateActivity(userId, true, isNewDish, connection);
+
             await connection.commit();
 
             return {
                 dish: finalDish,
                 rarity_rolled: finalDish.rarity,
-                group_id: groupId, // Return for verification
-                remaining: 9999
+                group_id: groupId,
+                remaining: 9999,
+                stats: statsUpdate // Return new stats for frontend animation
             };
 
         } catch (error) {
@@ -102,9 +108,16 @@ class GachaService {
         const totalDraws = await Gacha.getDrawCount(userId, groupId);
         const mostFrequent = await Gacha.getMostFrequent(userId, groupId);
 
+        // Fetch new Gamification Stats
+        const userStats = await UserStatsService.getStats(userId);
+
         return {
-            totalDraws,
-            mostFrequent: mostFrequent || null
+            totalDraws, // Keep using calculated count for accuracy/group filtering, or switch to userStats.total_draws if global
+            mostFrequent: mostFrequent || null,
+            // New Global Stats
+            currentStreak: userStats.current_streak,
+            totalLoginDays: userStats.total_login_days,
+            uniqueDishesCount: userStats.unique_dishes_count
         };
     }
 }

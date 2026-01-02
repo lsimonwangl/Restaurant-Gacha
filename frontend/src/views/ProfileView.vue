@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
+import { dishesApi } from '../api/dishes'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -19,7 +20,6 @@ const newPassword = ref('')
 
 // Delete Account State
 const deletePassword = ref('')
-const showDeleteConfirm = ref(false)
 
 const message = ref('')
 const error = ref('')

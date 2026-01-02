@@ -50,6 +50,7 @@ const isFullWidthPage = computed(() => ['/nearby'].includes(route.path))
       <RouterLink to="/restaurants" class="nav-link">我的餐廳</RouterLink>
       <RouterLink to="/nearby" class="nav-link">附近餐廳</RouterLink>
       <RouterLink to="/explore" class="nav-link">探索社群</RouterLink>
+      <RouterLink v-if="isAuthenticated" to="/stats" class="nav-link">個人紀錄</RouterLink>
       <div class="divider"></div>
       <RouterLink v-if="!isAuthenticated" to="/login" class="nav-link">登入</RouterLink>
       <RouterLink v-if="!isAuthenticated" to="/register" class="btn-primary" style="text-decoration: none; padding: 0.5rem 1rem;">註冊</RouterLink>
