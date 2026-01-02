@@ -11,7 +11,11 @@ const dishCount = ref(0)
 const loading = ref(true)
 const dishes = ref([])
 const totalDraws = ref(0)
-const collectedCount = ref(0) // New
+const collectedCount = ref(0) 
+const userStats = ref({
+    currentStreak: 0,
+    totalLoginDays: 0
+})
 const mostFrequent = ref(null)
 const defaultGroupId = ref(null)
 const drawing = ref(false)
@@ -54,8 +58,12 @@ const fetchStats = async () => {
     // allDraws.value = historyRes.data // Removed: No longer needed for stats
     
     // Set Stats from Backend
+    userStats.value = {
+        currentStreak: statsRes.data.currentStreak || 0,
+        totalLoginDays: statsRes.data.totalLoginDays || 0
+    }
     totalDraws.value = statsRes.data.totalDraws
-    collectedCount.value = statsRes.data.uniqueDishesCount || 0 // New
+    collectedCount.value = statsRes.data.uniqueDishesCount || 0
     mostFrequent.value = statsRes.data.mostFrequent
 
     if (groupsRes.data.length > 0) {
@@ -153,29 +161,21 @@ onMounted(async () => {
     </div>
 
     <div class="stats-grid">
-      <!-- 1. Stats Dashboard (New) -->
+      <!-- 1. Achievements Dashboard (New) -->
       <div class="glass-panel stat-card dashboard-card">
           <div class="card-header-row">
-            <h3>📊 個人數據</h3>
+            <h3>🏆 成就紀錄</h3>
           </div>
           <div class="dashboard-stats">
               <div class="stat-item">
-                  <span class="stat-value">{{ totalDraws }}</span>
-                  <span class="stat-label">累積抽卡</span>
+                  <span class="stat-value highlight">{{ userStats.currentStreak }}<small>天</small></span>
+                  <span class="stat-label">🔥 連續登入</span>
               </div>
               <div class="stat-divider"></div>
               <div class="stat-item">
-                  <span class="stat-value highlight">{{ mostFrequent?.count || 0 }}</span>
-                  <span class="stat-label">最愛: {{ mostFrequent?.name || '無' }}</span>
+                  <span class="stat-value">{{ userStats.totalLoginDays }}<small>天</small></span>
+                  <span class="stat-label">📅 總登入</span>
               </div>
-          </div>
-          
-          <!-- Quick Draw Settings -->
-          <div class="quick-draw-settings" v-if="userGroups.length > 0">
-              <span class="settings-label">抽卡群組:</span>
-              <select v-model="defaultGroupId" @change="savePreference" class="group-select">
-                  <option v-for="g in userGroups" :key="g.id" :value="g.id">{{ g.name }}</option>
-              </select>
           </div>
       </div>
 
