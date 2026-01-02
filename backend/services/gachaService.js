@@ -112,9 +112,9 @@ class GachaService {
         const userStats = await UserStatsService.getStats(userId);
 
         return {
-            totalDraws, // Keep using calculated count for accuracy/group filtering, or switch to userStats.total_draws if global
+            totalDraws,
             mostFrequent: mostFrequent || null,
-            // New Global Stats
+            // Global Achievement Stats
             currentStreak: userStats.current_streak,
             totalLoginDays: userStats.total_login_days,
             uniqueDishesCount: userStats.unique_dishes_count

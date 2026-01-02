@@ -79,13 +79,20 @@ class Gacha {
     }
 
     static async getDrawCount(userId, groupId = null) {
-        let sql = 'SELECT COUNT(id) as count FROM `draws` WHERE user_id = ?';
+        let sql = '';
         const params = [userId];
 
         if (groupId) {
-            // New Logic: Filter by group_id column directly
-            sql += ' AND group_id = ?';
+            sql = 'SELECT COUNT(id) as count FROM `draws` WHERE user_id = ? AND group_id = ?';
             params.push(groupId);
+        } else {
+            // Count only draws belonging to existing groups for this user
+            sql = `
+                SELECT COUNT(dr.id) as count 
+                FROM \`draws\` dr
+                JOIN \`groups\` g ON dr.group_id = g.id
+                WHERE dr.user_id = ?
+            `;
         }
 
         const [rows] = await db.query(sql, params);
@@ -93,21 +100,33 @@ class Gacha {
     }
 
     static async getMostFrequent(userId, groupId = null) {
-        let sql = `
-            SELECT d.name, COUNT(*) as count 
-            FROM \`draws\` dr
-            JOIN \`dishes\` d ON dr.dish_id = d.id
-            WHERE dr.user_id = ?
-        `;
+        let sql = '';
         const params = [userId];
 
         if (groupId) {
-            // New Logic: Filter by group_id column directly
-            sql += ' AND dr.group_id = ?';
+            sql = `
+                SELECT d.name, COUNT(*) as count 
+                FROM \`draws\` dr
+                JOIN \`dishes\` d ON dr.dish_id = d.id
+                WHERE dr.user_id = ? AND dr.group_id = ?
+                GROUP BY d.id, d.name 
+                ORDER BY count DESC 
+                LIMIT 1
+            `;
             params.push(groupId);
+        } else {
+            // Most frequent among all VALID groups
+            sql = `
+                SELECT d.name, COUNT(*) as count 
+                FROM \`draws\` dr
+                JOIN \`dishes\` d ON dr.dish_id = d.id
+                JOIN \`groups\` g ON dr.group_id = g.id
+                WHERE dr.user_id = ?
+                GROUP BY d.id, d.name 
+                ORDER BY count DESC 
+                LIMIT 1
+            `;
         }
-
-        sql += ' GROUP BY d.id, d.name ORDER BY count DESC LIMIT 1';
 
         const [rows] = await db.query(sql, params);
         return rows[0];
