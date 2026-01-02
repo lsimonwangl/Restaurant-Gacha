@@ -109,16 +109,16 @@ onMounted(() => {
                     </select>
                 </div>
                 
-                <div class="stats-grid">
+                <div class="stats-grid gacha-stats-grid">
                     <div class="stat-item">
                         <span class="stat-value">{{ totalDraws }}<small>次</small></span>
                         <span class="stat-label">總抽卡數</span>
                     </div>
-                    <div class="stat-item" v-if="mostFrequent">
+                    <div class="stat-item most-frequent" v-if="mostFrequent">
                         <span class="stat-value highlight">{{ mostFrequent.name }}</span>
                         <span class="stat-label">最常抽到 ({{ mostFrequent.count }}次)</span>
                     </div>
-                    <div class="stat-item" v-else>
+                    <div class="stat-item most-frequent" v-else>
                         <span class="stat-value">-</span>
                         <span class="stat-label">最常抽到</span>
                     </div>
@@ -171,21 +171,29 @@ onMounted(() => {
     margin-bottom: 0;
 }
 
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between; /* Push value to top/center, label to bottom */
+    gap: 0.5rem;
+    padding: 1.5rem 0.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    height: 100%;
+    min-height: 120px; /* Ensure a consistent minimum height */
+}
+
+.gacha-stats-grid .most-frequent {
+    grid-column: span 2;
+}
+
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
     text-align: center;
-}
-
-.stat-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 12px;
+    align-items: stretch;
 }
 
 .stat-value {
@@ -202,10 +210,14 @@ onMounted(() => {
 }
 
 .stat-value.highlight {
-    font-size: 1.2rem; /* Smaller font for long names */
+    font-size: 1.25rem;
     word-break: break-word;
-    line-height: 1.2;
-    padding: 0 0.2rem;
+    line-height: 1.4;
+    padding: 0 0.5rem;
+    flex: 1; /* Take up available space to push label down */
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .stat-label {
